@@ -1,0 +1,299 @@
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { DRINK_CATEGORIES, SIZE_OPTIONS, formatSize } from "../lib/drinks";
+import { addDays, addMinutes, formatDateInput, formatTimeInput, parseDateTimeInput } from "../lib/dates";
+import { DrinkCategory, VolumeUnit } from "../lib/types";
+
+export type EntryFormValues = {
+  category: DrinkCategory;
+  size_l: number;
+  datetime: Date;
+  note: string;
+};
+
+type EntryFormProps = {
+  initialValues?: EntryFormValues;
+  onSubmit: (values: EntryFormValues) => Promise<void> | void;
+  submitLabel: string;
+  onCancel?: () => void;
+  unit?: VolumeUnit;
+  busy?: boolean;
+};
+
+const fallbackCategory: DrinkCategory = "beer";
+
+export default function EntryForm({
+  initialValues,
+  onSubmit,
+  submitLabel,
+  onCancel,
+  unit = "l",
+  busy = false,
+}: EntryFormProps) {
+  const resolvedInitial = useMemo(() => {
+    const category = initialValues?.category ?? fallbackCategory;
+    const size = initialValues?.size_l ?? SIZE_OPTIONS[category][0];
+    const datetime = initialValues?.datetime ?? new Date();
+    const note = initialValues?.note ?? "";
+    return { category, size, datetime, note };
+  }, [initialValues]);
+
+  const [category, setCategory] = useState<DrinkCategory>(resolvedInitial.category);
+  const [sizeL, setSizeL] = useState(resolvedInitial.size);
+  const [datetime, setDatetime] = useState(resolvedInitial.datetime);
+  const [note, setNote] = useState(resolvedInitial.note);
+  const [dateInput, setDateInput] = useState(formatDateInput(resolvedInitial.datetime));
+  const [timeInput, setTimeInput] = useState(formatTimeInput(resolvedInitial.datetime));
+
+  useEffect(() => {
+    setCategory(resolvedInitial.category);
+    setSizeL(resolvedInitial.size);
+    setDatetime(resolvedInitial.datetime);
+    setNote(resolvedInitial.note);
+    setDateInput(formatDateInput(resolvedInitial.datetime));
+    setTimeInput(formatTimeInput(resolvedInitial.datetime));
+  }, [resolvedInitial]);
+
+  useEffect(() => {
+    const sizes = SIZE_OPTIONS[category];
+    if (!sizes.includes(sizeL)) {
+      setSizeL(sizes[0]);
+    }
+  }, [category, sizeL]);
+
+  const applyDate = (next: Date) => {
+    setDatetime(next);
+    setDateInput(formatDateInput(next));
+    setTimeInput(formatTimeInput(next));
+  };
+
+  const handleSubmit = async () => {
+    const parsed = parseDateTimeInput(dateInput.trim(), timeInput.trim());
+    if (!parsed) {
+      Alert.alert("Check date/time", "Use YYYY-MM-DD and HH:mm.");
+      return;
+    }
+    await onSubmit({
+      category,
+      size_l: sizeL,
+      datetime: parsed,
+      note: note.trim(),
+    });
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.section}>
+        <Text style={styles.label}>Drink type</Text>
+        <View style={styles.chipRow}>
+          {DRINK_CATEGORIES.map((option) => {
+            const selected = option.key === category;
+            return (
+              <Pressable
+                key={option.key}
+                onPress={() => setCategory(option.key)}
+                style={[styles.chip, selected && styles.chipSelected]}
+              >
+                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>Size</Text>
+        <View style={styles.chipRow}>
+          {SIZE_OPTIONS[category].map((size) => {
+            const selected = size === sizeL;
+            return (
+              <Pressable
+                key={`${category}-${size}`}
+                onPress={() => setSizeL(size)}
+                style={[styles.chip, selected && styles.chipSelected]}
+              >
+                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                  {formatSize(size, unit)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>Date and time</Text>
+        <View style={styles.dateRow}>
+          <TextInput
+            value={dateInput}
+            onChangeText={setDateInput}
+            style={styles.dateInput}
+            placeholder="YYYY-MM-DD"
+            keyboardType="numbers-and-punctuation"
+            maxLength={10}
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+          <TextInput
+            value={timeInput}
+            onChangeText={setTimeInput}
+            style={styles.timeInput}
+            placeholder="HH:mm"
+            keyboardType="numbers-and-punctuation"
+            maxLength={5}
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+        </View>
+        <View style={styles.quickRow}>
+          <Pressable style={styles.quickChip} onPress={() => applyDate(new Date())}>
+            <Text style={styles.quickChipText}>Now</Text>
+          </Pressable>
+          <Pressable style={styles.quickChip} onPress={() => applyDate(addMinutes(new Date(), -60))}>
+            <Text style={styles.quickChipText}>1h ago</Text>
+          </Pressable>
+          <Pressable style={styles.quickChip} onPress={() => applyDate(addDays(new Date(), -1))}>
+            <Text style={styles.quickChipText}>Yesterday</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>Note (optional)</Text>
+        <TextInput
+          value={note}
+          onChangeText={setNote}
+          placeholder="Add a short note"
+          style={styles.noteInput}
+        />
+      </View>
+
+      <View style={styles.buttonRow}>
+        {onCancel ? (
+          <Pressable style={[styles.actionButton, styles.cancelButton]} onPress={onCancel}>
+            <Text style={styles.cancelText}>Cancel</Text>
+          </Pressable>
+        ) : null}
+        <Pressable
+          style={[styles.actionButton, styles.saveButton, busy && styles.saveButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={busy}
+        >
+          <Text style={styles.saveText}>{busy ? "Saving..." : submitLabel}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    gap: 16,
+  },
+  section: {
+    gap: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1f1f1f",
+  },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#d6d1cc",
+    backgroundColor: "#f6f4f1",
+  },
+  chipSelected: {
+    backgroundColor: "#2b2b2b",
+    borderColor: "#2b2b2b",
+  },
+  chipText: {
+    color: "#2b2b2b",
+    fontSize: 13,
+  },
+  chipTextSelected: {
+    color: "#f8f5f1",
+  },
+  dateRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  dateInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#d6d1cc",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#ffffff",
+  },
+  timeInput: {
+    width: 110,
+    borderWidth: 1,
+    borderColor: "#d6d1cc",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#ffffff",
+  },
+  quickRow: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  quickChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "#ece7e2",
+  },
+  quickChipText: {
+    fontSize: 12,
+    color: "#3a342e",
+  },
+  noteInput: {
+    borderWidth: 1,
+    borderColor: "#d6d1cc",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#ffffff",
+  },
+  buttonRow: {
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "flex-end",
+  },
+  actionButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  saveButton: {
+    backgroundColor: "#1c6b4f",
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
+  saveText: {
+    color: "#f5f3ee",
+    fontWeight: "600",
+  },
+  cancelButton: {
+    backgroundColor: "#ebe7e2",
+  },
+  cancelText: {
+    color: "#3b3530",
+    fontWeight: "600",
+  },
+});
