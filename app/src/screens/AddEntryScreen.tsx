@@ -22,6 +22,8 @@ import { addDays, formatDateInput, pad2, startOfDay } from "../lib/dates";
 import { useEntries } from "../lib/entries-context";
 import { useLocalSettings } from "../lib/local-settings";
 import { DrinkCategory } from "../lib/types";
+import { useTheme } from "../lib/theme-context";
+import type { Theme } from "../lib/theme";
 
 const MONTHS = [
   "January",
@@ -50,6 +52,8 @@ type PendingEntry = {
 export default function AddEntryScreen() {
   const { createEntries, error } = useEntries();
   const { settings, loading: settingsLoading } = useLocalSettings();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const now = new Date();
   const [selectedDate, setSelectedDate] = useState(startOfDay(now));
   const [displayMonthDate, setDisplayMonthDate] = useState(startOfDay(now));
@@ -313,7 +317,7 @@ export default function AddEntryScreen() {
                       <DrinkIcon
                         category={item.key}
                         size={14}
-                        color={selected ? "#f8f5f1" : "#2b2b2b"}
+                        color={selected ? colors.accentText : colors.text}
                       />
                       <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
                         {item.label}
@@ -341,6 +345,7 @@ export default function AddEntryScreen() {
                 keyboardType="number-pad"
                 style={styles.countInput}
                 placeholder="1"
+                placeholderTextColor={colors.textMuted}
               />
             </View>
           </View>
@@ -353,6 +358,7 @@ export default function AddEntryScreen() {
                 onChangeText={setCustomName}
                 placeholder="e.g. Cider"
                 style={styles.textInput}
+                placeholderTextColor={colors.textMuted}
               />
             </View>
           ) : null}
@@ -366,6 +372,7 @@ export default function AddEntryScreen() {
                 placeholder="10"
                 keyboardType="decimal-pad"
                 style={styles.textInput}
+                placeholderTextColor={colors.textMuted}
               />
             </View>
           ) : null}
@@ -409,7 +416,7 @@ export default function AddEntryScreen() {
               <View style={[styles.rowItemCompact, styles.noteColumn]}>
                 <Text style={styles.label}>Note</Text>
                 <Pressable style={styles.noteButton} onPress={openNoteModal}>
-                  <MaterialIcons name="edit-note" size={20} color="#3b3530" />
+                  <MaterialIcons name="edit-note" size={20} color={colors.textMuted} />
                 </Pressable>
               </View>
             </View>
@@ -483,10 +490,11 @@ export default function AddEntryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Theme["colors"]) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f7f4ef",
+    backgroundColor: colors.background,
   },
   container: {
     padding: 20,
@@ -500,18 +508,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#1f1c1a",
+    color: colors.text,
   },
   saved: {
-    color: "#1c6b4f",
+    color: colors.accent,
     fontWeight: "600",
   },
   card: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#ece6e1",
+    borderColor: colors.border,
     gap: 12,
   },
   calendarCard: {
@@ -521,7 +529,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#2b2724",
+    color: colors.text,
   },
   calendarHeader: {
     flexDirection: "row",
@@ -536,7 +544,7 @@ const styles = StyleSheet.create({
   calendarTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#2b2724",
+    color: colors.text,
   },
   monthButton: {
     width: 26,
@@ -544,18 +552,18 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f0ebe6",
+    backgroundColor: colors.surfaceMuted,
   },
   monthButtonText: {
     fontSize: 16,
-    color: "#4b443d",
+    color: colors.textMuted,
   },
   todayButton: {
     alignSelf: "flex-start",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: "#ece7e2",
+    backgroundColor: colors.surfaceMuted,
   },
   quickDateRow: {
     flexDirection: "row",
@@ -564,7 +572,7 @@ const styles = StyleSheet.create({
   },
   todayButtonText: {
     fontSize: 12,
-    color: "#3b3530",
+    color: colors.textMuted,
     fontWeight: "600",
   },
   section: {
@@ -572,7 +580,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    color: "#6a645d",
+    color: colors.textMuted,
     fontWeight: "600",
   },
   chipRow: {
@@ -585,16 +593,16 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#d6d1cc",
-    backgroundColor: "#f6f4f1",
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
   },
   chipSelected: {
-    backgroundColor: "#2b2b2b",
-    borderColor: "#2b2b2b",
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   chipText: {
     fontSize: 12,
-    color: "#2b2b2b",
+    color: colors.text,
   },
   chipContent: {
     flexDirection: "row",
@@ -607,15 +615,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: "#1c6b4f",
+    backgroundColor: colors.accent,
   },
   nextEntryText: {
-    color: "#f5f3ee",
+    color: colors.accentText,
     fontWeight: "600",
     fontSize: 12,
   },
   chipTextSelected: {
-    color: "#f8f5f1",
+    color: colors.accentText,
   },
   rowBetween: {
     flexDirection: "row",
@@ -666,45 +674,47 @@ const styles = StyleSheet.create({
   },
   dropdown: {
     borderWidth: 1,
-    borderColor: "#d6d1cc",
+    borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: "#f0ebe6",
+    backgroundColor: colors.surfaceMuted,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
   },
   dropdownText: {
-    color: "#2b2724",
+    color: colors.text,
     fontWeight: "600",
   },
   dropdownIcon: {
-    color: "#6a645d",
+    color: colors.textMuted,
     fontWeight: "700",
   },
   countInput: {
     borderWidth: 1,
-    borderColor: "#d6d1cc",
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     fontWeight: "600",
+    color: colors.text,
   },
   textInput: {
     borderWidth: 1,
-    borderColor: "#d6d1cc",
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     fontWeight: "600",
+    color: colors.text,
   },
   valueText: {
     fontSize: 14,
-    color: "#2b2724",
+    color: colors.text,
     fontWeight: "600",
   },
   timeRow: {
@@ -717,48 +727,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: "#2b2b2b",
+    backgroundColor: colors.accent,
   },
   timeButtonSecondary: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: "#ece7e2",
+    backgroundColor: colors.surfaceMuted,
   },
   timeButtonText: {
-    color: "#f8f5f1",
+    color: colors.accentText,
     fontWeight: "600",
   },
   timeSeparator: {
-    color: "#6a645d",
+    color: colors.textMuted,
     fontWeight: "600",
   },
   timeButtonTextDark: {
-    color: "#3b3530",
+    color: colors.textMuted,
     fontWeight: "600",
   },
   noteButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#ece7e2",
+    backgroundColor: colors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
   },
   notePreview: {
-    color: "#3f3a35",
+    color: colors.textMuted,
   },
   saveButton: {
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
-    backgroundColor: "#1c6b4f",
+    backgroundColor: colors.accent,
   },
   saveButtonDisabled: {
     opacity: 0.6,
   },
   saveText: {
-    color: "#f5f3ee",
+    color: colors.accentText,
     fontWeight: "600",
   },
 });

@@ -1,6 +1,7 @@
 import { ComponentProps } from "react";
 import { FontAwesome5, Ionicons } from "@expo/vector-icons";
 import { DrinkCategory } from "../lib/types";
+import { useTheme } from "../lib/theme-context";
 
 type DrinkIconProps = {
   category: DrinkCategory;
@@ -24,12 +25,14 @@ const ICONS: Record<DrinkCategory, IconDefinition> = {
   other: { family: "fa5", name: "question-circle" },
 };
 
-export default function DrinkIcon({ category, size = 16, color = "#2b2724" }: DrinkIconProps) {
+export default function DrinkIcon({ category, size = 16, color }: DrinkIconProps) {
+  const { colors } = useTheme();
+  const iconColor = color ?? colors.text;
   const icon = ICONS[category];
 
   if (icon.family === "ion") {
-    return <Ionicons name={icon.name} size={size} color={color} />;
+    return <Ionicons name={icon.name} size={size} color={iconColor} />;
   }
 
-  return <FontAwesome5 name={icon.name} size={size} color={color} solid />;
+  return <FontAwesome5 name={icon.name} size={size} color={iconColor} solid />;
 }

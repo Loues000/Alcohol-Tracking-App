@@ -1,6 +1,9 @@
+import { useMemo } from "react";
 import { Modal, Pressable, StyleSheet, Text } from "react-native";
 import { formatSize } from "../lib/drinks";
 import { VolumeUnit } from "../lib/types";
+import { useTheme } from "../lib/theme-context";
+import type { Theme } from "../lib/theme";
 
 type SizePickerModalProps = {
   visible: boolean;
@@ -17,6 +20,9 @@ export default function SizePickerModal({
   onClose,
   onSelect,
 }: SizePickerModalProps) {
+  const { colors, mode } = useTheme();
+  const overlayColor = mode === "dark" ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.35)";
+  const styles = useMemo(() => createStyles(colors, overlayColor), [colors, overlayColor]);
   return (
     <Modal visible={visible} transparent animationType="slide">
       <Pressable style={styles.modalOverlay} onPress={onClose}>
@@ -33,29 +39,30 @@ export default function SizePickerModal({
   );
 }
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "flex-end",
-  },
-  modalSheet: {
-    backgroundColor: "#ffffff",
-    padding: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    gap: 12,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#2b2724",
-  },
-  modalOption: {
-    paddingVertical: 10,
-  },
-  modalOptionText: {
-    fontSize: 16,
-    color: "#2b2724",
-  },
-});
+const createStyles = (colors: Theme["colors"], overlayColor: string) =>
+  StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: overlayColor,
+      justifyContent: "flex-end",
+    },
+    modalSheet: {
+      backgroundColor: colors.surface,
+      padding: 20,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      gap: 12,
+    },
+    modalTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: colors.text,
+    },
+    modalOption: {
+      paddingVertical: 10,
+    },
+    modalOptionText: {
+      fontSize: 16,
+      color: colors.text,
+    },
+  });

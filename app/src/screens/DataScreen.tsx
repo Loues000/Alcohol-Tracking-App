@@ -14,6 +14,8 @@ import {
 import { useEntries } from "../lib/entries-context";
 import { useLocalSettings } from "../lib/local-settings";
 import { Entry } from "../lib/types";
+import { useTheme } from "../lib/theme-context";
+import type { Theme } from "../lib/theme";
 
 type FilterKey = "all" | "today" | "week" | "month";
 
@@ -27,6 +29,8 @@ const FILTERS: Array<{ key: FilterKey; label: string }> = [
 export default function DataScreen() {
   const { entries, loading, refresh, deleteEntry, updateEntry, error } = useEntries();
   const { settings } = useLocalSettings();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
   const [saving, setSaving] = useState(false);
@@ -147,7 +151,7 @@ export default function DataScreen() {
       <View key={item.id} style={styles.entryCard}>
         <View style={styles.entryHeader}>
           <View style={styles.entryTitleRow}>
-            <DrinkIcon category={item.category} size={16} color="#2b2724" />
+            <DrinkIcon category={item.category} size={16} color={colors.text} />
             <Text style={styles.entryTitle}>{CATEGORY_LABELS[item.category]}</Text>
           </View>
           <Text style={styles.entrySize}>{formatSize(item.size_l, settings.unit)}</Text>
@@ -263,10 +267,11 @@ export default function DataScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Theme["colors"]) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f7f4ef",
+    backgroundColor: colors.background,
   },
   listContent: {
     padding: 20,
@@ -278,7 +283,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#1f1c1a",
+    color: colors.text,
   },
   filterRow: {
     flexDirection: "row",
@@ -290,39 +295,39 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#d6d1cc",
-    backgroundColor: "#f6f4f1",
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
   },
   filterChipSelected: {
-    backgroundColor: "#2b2b2b",
-    borderColor: "#2b2b2b",
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   filterText: {
     fontSize: 13,
-    color: "#2b2b2b",
+    color: colors.text,
   },
   filterTextSelected: {
-    color: "#f8f5f1",
+    color: colors.accentText,
   },
   editCard: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#ece6e1",
+    borderColor: colors.border,
     gap: 12,
   },
   editTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#2b2724",
+    color: colors.text,
   },
   dayCard: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#ece6e1",
+    borderColor: colors.border,
     gap: 12,
   },
   dayHeader: {
@@ -333,23 +338,23 @@ const styles = StyleSheet.create({
   dayTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#1f1c1a",
+    color: colors.text,
   },
   daySummary: {
-    color: "#6a645d",
+    color: colors.textMuted,
     fontSize: 12,
     marginTop: 4,
   },
   dayToggle: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#3b3530",
+    color: colors.textMuted,
   },
   dayEntries: {
     gap: 10,
   },
   entryCard: {
-    backgroundColor: "#f6f4f1",
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 12,
     padding: 12,
     gap: 6,
@@ -367,18 +372,18 @@ const styles = StyleSheet.create({
   entryTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#1f1c1a",
+    color: colors.text,
   },
   entrySize: {
-    color: "#6a645d",
+    color: colors.textMuted,
     fontSize: 13,
   },
   entryMeta: {
-    color: "#6a645d",
+    color: colors.textMuted,
     fontSize: 12,
   },
   entryNote: {
-    color: "#3f3a35",
+    color: colors.textMuted,
   },
   entryActions: {
     flexDirection: "row",
@@ -389,12 +394,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: "#ece7e2",
+    backgroundColor: colors.surfaceMuted,
   },
   actionText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#3b3530",
+    color: colors.textMuted,
   },
   deleteButton: {
     backgroundColor: "#f0dede",
@@ -410,9 +415,9 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1f1c1a",
+    color: colors.text,
   },
   emptySubtitle: {
-    color: "#6a645d",
+    color: colors.textMuted,
   },
 });

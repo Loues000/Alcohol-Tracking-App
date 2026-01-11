@@ -39,11 +39,23 @@ export const DEFAULT_ABV: Record<DrinkCategory, number | null> = DRINK_CATEGORIE
   {} as Record<DrinkCategory, number | null>
 );
 
+const OUNCES_PER_LITER = 33.814;
+
+const formatNumber = (value: number, decimals: number) =>
+  value.toFixed(decimals).replace(/\.?0+$/, "");
+
 export const formatSize = (sizeL: number, unit: VolumeUnit = "l") => {
   if (unit === "ml") {
     return `${Math.round(sizeL * 1000)} ml`;
   }
 
-  const trimmed = sizeL.toFixed(2).replace(/\.?0+$/, "");
-  return `${trimmed} L`;
+  if (unit === "cl") {
+    return `${Math.round(sizeL * 100)} cl`;
+  }
+
+  if (unit === "oz") {
+    return `${formatNumber(sizeL * OUNCES_PER_LITER, 1)} oz`;
+  }
+
+  return `${formatNumber(sizeL, 2)} L`;
 };

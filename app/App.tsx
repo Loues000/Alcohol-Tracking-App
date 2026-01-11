@@ -4,8 +4,10 @@ import { Alert, Linking, Text, View } from "react-native";
 import { Session } from "@supabase/supabase-js";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { EntriesProvider } from "./src/lib/entries-context";
+import { LocalSettingsProvider } from "./src/lib/local-settings";
 import { ProfileProvider } from "./src/lib/profile-context";
 import { supabase } from "./src/lib/supabase";
+import { ThemeProvider } from "./src/lib/theme-context";
 import Tabs from "./src/navigation/Tabs";
 import LoginScreen from "./src/screens/LoginScreen";
 
@@ -52,15 +54,19 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        {session ? (
-          <ProfileProvider user={session.user}>
-            <EntriesProvider userId={session.user.id}>
-              <Tabs />
-            </EntriesProvider>
-          </ProfileProvider>
-        ) : (
-          <LoginScreen />
-        )}
+        <LocalSettingsProvider>
+          <ThemeProvider>
+            {session ? (
+              <ProfileProvider user={session.user}>
+                <EntriesProvider userId={session.user.id}>
+                  <Tabs />
+                </EntriesProvider>
+              </ProfileProvider>
+            ) : (
+              <LoginScreen />
+            )}
+          </ThemeProvider>
+        </LocalSettingsProvider>
       </NavigationContainer>
     </SafeAreaProvider>
   );

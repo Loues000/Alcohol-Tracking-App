@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
-import { DEFAULT_ABV, DRINK_CATEGORIES } from "../lib/drinks";
+import { DRINK_CATEGORIES } from "../lib/drinks";
+import { CATEGORY_COLORS } from "../lib/dashboard-theme";
+import { getEntryEthanolGrams, toStandardDrinks } from "../lib/alcohol";
+import { formatVolume } from "../lib/dashboard-utils";
 import { formatShortDate, startOfDay, toDateKey } from "../lib/dates";
 import { useEntries } from "../lib/entries-context";
+import { useLocalSettings } from "../lib/local-settings";
 import { DrinkCategory, Entry } from "../lib/types";
+import { useTheme } from "../lib/theme-context";
+import type { Theme } from "../lib/theme";
 
 const MONTH_LABELS = [
   "Jan",
@@ -23,18 +29,6 @@ const MONTH_LABELS = [
 
 const WEEKDAY_LABELS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const WEEKDAY_LABELS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-const CATEGORY_COLORS: Record<DrinkCategory, string> = {
-  beer: "#c59b49",
-  wine: "#9b3b46",
-  sekt: "#d2b15a",
-  longdrink: "#4f8ea8",
-  shot: "#6f7a4f",
-  other: "#8b7f7a",
-};
-
-const ETHANOL_GRAMS_PER_LITER = 789;
-const STANDARD_DRINK_GRAMS = 12;
 
 type SortDir = "asc" | "desc";
 type MonthSortKey = "month" | "liters" | "drinkingDays";
@@ -67,11 +61,6 @@ type QuarterStats = {
   liters: number;
 };
 
-const formatLiters = (value: number) => {
-  const trimmed = value.toFixed(2).replace(/\.?0+$/, "");
-  return `${trimmed} L`;
-};
-
 const formatPercent = (value: number) => `${value.toFixed(1)}%`;
 
 const formatGrams = (grams: number) => {
@@ -87,71 +76,12 @@ const parseDateKey = (key: string) => {
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-function CollapsibleCard({
-  title,
-  expanded,
-  onToggle,
-  children,
-  right,
-  wide,
-}: {
-  title: string;
-  expanded?: boolean;
-  onToggle?: () => void;
-  children: ReactNode;
-  right?: ReactNode;
-  wide?: boolean;
-}) {
-  const isCollapsible = typeof expanded === "boolean" && typeof onToggle === "function";
-  return (
-    <View style={wide ? styles.cardWide : styles.card}>
-      <Pressable
-        style={[styles.cardHeader, !isCollapsible && styles.cardHeaderStatic]}
-        onPress={onToggle}
-        disabled={!isCollapsible}
-      >
-        <View style={styles.cardHeaderLeft}>
-          <Text style={styles.cardTitle}>{title}</Text>
-          {isCollapsible ? (
-            <FontAwesome name={expanded ? "chevron-up" : "chevron-down"} size={12} color="#6a645d" />
-          ) : null}
-        </View>
-        {right ? <View style={styles.cardHeaderRight}>{right}</View> : null}
-      </Pressable>
-      {isCollapsible ? (expanded ? children : null) : children}
-    </View>
-  );
-}
-
-function SortHeaderCell({
-  label,
-  active,
-  dir,
-  onPress,
-  rightAligned,
-}: {
-  label: string;
-  active: boolean;
-  dir: SortDir;
-  onPress: () => void;
-  rightAligned?: boolean;
-}) {
-  const arrow = active ? (dir === "asc" ? "▲" : "▼") : "";
-  return (
-    <Pressable
-      style={[styles.tableHeaderCell, rightAligned && styles.tableHeaderCellRight]}
-      onPress={onPress}
-      hitSlop={6}
-    >
-      <Text style={[styles.tableHeaderText, rightAligned && styles.cellRight]}>
-        {label} {arrow}
-      </Text>
-    </Pressable>
-  );
-}
-
 export default function DiagramsScreen() {
   const { entries } = useEntries();
+  const { settings } = useLocalSettings();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const formatVolumeWithUnit = (value: number) => formatVolume(value, settings.unit);
   const now = new Date();
   const nowYear = now.getFullYear();
   const [year, setYear] = useState(nowYear);
@@ -168,6 +98,78 @@ export default function DiagramsScreen() {
     key: "weekday",
     dir: "asc",
   });
+
+  const CollapsibleCard = ({
+    title,
+    expanded,
+    onToggle,
+    children,
+    right,
+    wide,
+  }: {
+    title: string;
+    expanded?: boolean;
+    onToggle?: () => void;
+    children: ReactNode;
+    right?: ReactNode;
+    wide?: boolean;
+  }) => {
+    const isCollapsible = typeof expanded === "boolean" && typeof onToggle === "function";
+    return (
+      <View
+        style={[
+          wide ? styles.cardWide : styles.card,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+      >
+        <Pressable
+          style={[styles.cardHeader, !isCollapsible && styles.cardHeaderStatic]}
+          onPress={onToggle}
+          disabled={!isCollapsible}
+        >
+          <View style={styles.cardHeaderLeft}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>{title}</Text>
+            {isCollapsible ? (
+              <FontAwesome
+                name={expanded ? "chevron-up" : "chevron-down"}
+                size={12}
+                color={colors.textMuted}
+              />
+            ) : null}
+          </View>
+          {right ? <View style={styles.cardHeaderRight}>{right}</View> : null}
+        </Pressable>
+        {isCollapsible ? (expanded ? children : null) : children}
+      </View>
+    );
+  };
+
+  const SortHeaderCell = ({
+    label,
+    active,
+    dir,
+    onPress,
+    rightAligned,
+  }: {
+    label: string;
+    active: boolean;
+    dir: SortDir;
+    onPress: () => void;
+    rightAligned?: boolean;
+  }) => {
+    const arrow = active ? (dir === "asc" ? "^" : "v") : "";
+    return (
+      <Pressable
+        style={[styles.tableHeaderCell, rightAligned && styles.tableHeaderCellRight]}
+        onPress={onPress}
+        hitSlop={6}
+      >
+        <Text style={[styles.tableHeaderText, rightAligned && styles.cellRight]}>
+          {label} {arrow}
+        </Text>
+      </Pressable>
+    );
+  };
 
   const yearBounds = useMemo(() => {
     const years = entries.map((entry) => new Date(entry.consumed_at).getFullYear());
@@ -415,12 +417,7 @@ export default function DiagramsScreen() {
     const totals = Array.from({ length: 12 }, () => 0);
     for (const entry of entriesForYear) {
       const month = new Date(entry.consumed_at).getMonth();
-      const abv =
-        entry.category === "other"
-          ? entry.abv_percent ?? DEFAULT_ABV.other ?? 10
-          : DEFAULT_ABV[entry.category] ?? 0;
-      const ethanolLiters = entry.size_l * (abv / 100);
-      totals[month] += ethanolLiters * ETHANOL_GRAMS_PER_LITER;
+      totals[month] += getEntryEthanolGrams(entry);
     }
     return totals;
   }, [entriesForYear]);
@@ -431,7 +428,7 @@ export default function DiagramsScreen() {
   );
 
   const maxPureAlcoholMonth = Math.max(1, ...pureAlcoholGramsByMonth);
-  const standardDrinks = pureAlcoholTotalGrams / STANDARD_DRINK_GRAMS;
+  const standardDrinks = toStandardDrinks(pureAlcoholTotalGrams);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -447,7 +444,7 @@ export default function DiagramsScreen() {
               <Text style={styles.yearButtonText}>{"<"}</Text>
             </Pressable>
             <View style={styles.yearPill}>
-              <FontAwesome name="calendar" size={14} color="#2b2724" />
+              <FontAwesome name="calendar" size={14} color={colors.text} />
               <Text style={styles.yearPillText}>{year}</Text>
             </View>
             <Pressable
@@ -477,7 +474,7 @@ export default function DiagramsScreen() {
             <View style={styles.summaryGrid}>
               <View style={styles.summaryTile}>
                 <Text style={styles.summaryLabel}>Total</Text>
-                <Text style={styles.summaryValue}>{formatLiters(totalLiters)}</Text>
+                <Text style={styles.summaryValue}>{formatVolumeWithUnit(totalLiters)}</Text>
               </View>
               <View style={styles.summaryTile}>
                 <Text style={styles.summaryLabel}>Drinking days</Text>
@@ -485,18 +482,18 @@ export default function DiagramsScreen() {
               </View>
               <View style={styles.summaryTile}>
                 <Text style={styles.summaryLabel}>Avg / day</Text>
-                <Text style={styles.summaryValue}>{formatLiters(avgLitersPerDay)}</Text>
+                <Text style={styles.summaryValue}>{formatVolumeWithUnit(avgLitersPerDay)}</Text>
               </View>
               <View style={styles.summaryTile}>
                 <Text style={styles.summaryLabel}>Avg / drinking day</Text>
-                <Text style={styles.summaryValue}>{formatLiters(avgLitersPerDrinkingDay)}</Text>
+                <Text style={styles.summaryValue}>{formatVolumeWithUnit(avgLitersPerDrinkingDay)}</Text>
               </View>
               <View style={styles.summaryTileWide}>
                 <Text style={styles.summaryLabel}>Max day</Text>
                 <Text style={styles.summaryValue}>
                   {yearMaxDay.maxDate
-                    ? `${formatLiters(yearMaxDay.maxLiters)} - ${formatShortDate(yearMaxDay.maxDate)}`
-                    : "0 L"}
+                    ? `${formatVolumeWithUnit(yearMaxDay.maxLiters)} - ${formatShortDate(yearMaxDay.maxDate)}`
+                    : formatVolumeWithUnit(0)}
                 </Text>
               </View>
             </View>
@@ -543,7 +540,9 @@ export default function DiagramsScreen() {
                       }
                     >
                       <Text style={styles.tableCell}>{MONTH_LABELS[month.month]}</Text>
-                      <Text style={[styles.tableCell, styles.cellRight]}>{formatLiters(month.liters)}</Text>
+                      <Text style={[styles.tableCell, styles.cellRight]}>
+                        {formatVolumeWithUnit(month.liters)}
+                      </Text>
                       <Text style={[styles.tableCell, styles.cellRight]}>
                         {month.drinkingDays} ({formatPercent(month.drinkingDaysPercent)})
                       </Text>
@@ -552,12 +551,14 @@ export default function DiagramsScreen() {
                     {expanded ? (
                       <View style={styles.rowDetails}>
                         <Text style={styles.rowDetailLine}>Share: {formatPercent(month.percentOfYear)}</Text>
-                        <Text style={styles.rowDetailLine}>Avg/day: {formatLiters(month.avgPerDay)}</Text>
+                        <Text style={styles.rowDetailLine}>
+                          Avg/day: {formatVolumeWithUnit(month.avgPerDay)}
+                        </Text>
                         <Text style={styles.rowDetailLine}>
                           Max day:{" "}
                           {month.maxDate
-                            ? `${formatLiters(month.maxLiters)} - ${formatShortDate(month.maxDate)}`
-                            : "0 L"}
+                            ? `${formatVolumeWithUnit(month.maxLiters)} - ${formatShortDate(month.maxDate)}`
+                            : formatVolumeWithUnit(0)}
                         </Text>
                         <Text style={styles.rowDetailLine}>
                           Drinking days: {month.drinkingDays} ({formatPercent(month.drinkingDaysPercent)})
@@ -610,7 +611,9 @@ export default function DiagramsScreen() {
                       }
                     >
                       <Text style={styles.tableCell}>{WEEKDAY_LABELS_SHORT[day.weekday]}</Text>
-                      <Text style={[styles.tableCell, styles.cellRight]}>{formatLiters(day.liters)}</Text>
+                      <Text style={[styles.tableCell, styles.cellRight]}>
+                        {formatVolumeWithUnit(day.liters)}
+                      </Text>
                       <Text style={[styles.tableCell, styles.cellRight]}>
                         {day.drinkingDays} ({formatPercent(day.drinkingDaysPercent)})
                       </Text>
@@ -620,15 +623,17 @@ export default function DiagramsScreen() {
                       <View style={styles.rowDetails}>
                         <Text style={styles.rowDetailLine}>Weekday: {WEEKDAY_LABELS[day.weekday]}</Text>
                         <Text style={styles.rowDetailLine}>Share: {formatPercent(day.percentOfYear)}</Text>
-                        <Text style={styles.rowDetailLine}>Avg/day: {formatLiters(day.avgPerDay)}</Text>
+                        <Text style={styles.rowDetailLine}>
+                          Avg/day: {formatVolumeWithUnit(day.avgPerDay)}
+                        </Text>
                         <Text style={styles.rowDetailLine}>
                           Drinking days: {day.drinkingDays} ({formatPercent(day.drinkingDaysPercent)})
                         </Text>
                         <Text style={styles.rowDetailLine}>
                           Max day:{" "}
                           {day.maxDate
-                            ? `${formatLiters(day.maxLiters)} - ${formatShortDate(day.maxDate)}`
-                            : "0 L"}
+                            ? `${formatVolumeWithUnit(day.maxLiters)} - ${formatShortDate(day.maxDate)}`
+                            : formatVolumeWithUnit(0)}
                         </Text>
                       </View>
                     ) : null}
@@ -652,7 +657,7 @@ export default function DiagramsScreen() {
                     <View style={styles.quarterBarTrack}>
                       <View style={[styles.quarterBarFill, { width: `${width}%` }]} />
                     </View>
-                    <Text style={styles.quarterValue}>{formatLiters(quarter.liters)}</Text>
+                    <Text style={styles.quarterValue}>{formatVolumeWithUnit(quarter.liters)}</Text>
                   </View>
                 );
               })}
@@ -675,7 +680,7 @@ export default function DiagramsScreen() {
                         ]}
                       />
                     </View>
-                    <Text style={styles.quarterValue}>{formatLiters(liters)}</Text>
+                    <Text style={styles.quarterValue}>{formatVolumeWithUnit(liters)}</Text>
                   </View>
                 );
               })}
@@ -713,10 +718,11 @@ export default function DiagramsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Theme["colors"]) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f7f4ef",
+    backgroundColor: colors.background,
   },
   container: {
     padding: 20,
@@ -730,7 +736,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#1f1c1a",
+    color: colors.text,
   },
   yearSelector: {
     flexDirection: "row",
@@ -743,14 +749,14 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#ece7e2",
+    backgroundColor: colors.surfaceMuted,
   },
   yearButtonDisabled: {
     opacity: 0.4,
   },
   yearButtonText: {
     fontSize: 14,
-    color: "#4b443d",
+    color: colors.textMuted,
   },
   yearPill: {
     flexDirection: "row",
@@ -759,12 +765,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#ece6e1",
+    borderColor: colors.border,
   },
   yearPillText: {
-    color: "#2b2724",
+    color: colors.text,
     fontWeight: "600",
   },
   grid: {
@@ -775,21 +781,21 @@ const styles = StyleSheet.create({
   card: {
     flexGrow: 1,
     minWidth: 280,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#ece6e1",
+    borderColor: colors.border,
     gap: 12,
   },
   cardWide: {
     flexGrow: 2,
     minWidth: 320,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#ece6e1",
+    borderColor: colors.border,
     gap: 12,
   },
   cardHeader: {
@@ -812,10 +818,10 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#2b2724",
+    color: colors.text,
   },
   summarySubtitle: {
-    color: "#6a645d",
+    color: colors.textMuted,
     fontSize: 12,
     textAlign: "right",
   },
@@ -830,8 +836,8 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#efe9e4",
-    backgroundColor: "#fbfaf8",
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
     gap: 6,
   },
   summaryTileWide: {
@@ -840,17 +846,17 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#efe9e4",
-    backgroundColor: "#fbfaf8",
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
     gap: 6,
   },
   summaryLabel: {
-    color: "#6a645d",
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: "600",
   },
   summaryValue: {
-    color: "#2b2724",
+    color: colors.text,
     fontSize: 16,
     fontWeight: "700",
   },
@@ -862,14 +868,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0ebe6",
+    borderBottomColor: colors.border,
   },
   tableRowExpanded: {
-    backgroundColor: "#fbfaf8",
-    borderBottomColor: "#efe9e4",
+    backgroundColor: colors.surfaceAlt,
+    borderBottomColor: colors.border,
   },
   tableHeaderRow: {
-    borderBottomColor: "#ded8d1",
+    borderBottomColor: colors.borderStrong,
   },
   tableHeaderCell: {
     flex: 1,
@@ -879,11 +885,11 @@ const styles = StyleSheet.create({
   },
   tableCell: {
     flex: 1,
-    color: "#3f3a35",
+    color: colors.text,
     fontSize: 12,
   },
   tableHeaderText: {
-    color: "#6a645d",
+    color: colors.textMuted,
     fontWeight: "600",
   },
   cellRight: {
@@ -896,7 +902,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   rowDetailLine: {
-    color: "#6a645d",
+    color: colors.textMuted,
     fontSize: 12,
   },
   quarterList: {
@@ -910,35 +916,35 @@ const styles = StyleSheet.create({
   quarterLabel: {
     width: 26,
     fontWeight: "600",
-    color: "#2b2724",
+    color: colors.text,
   },
   categoryLabel: {
     width: 130,
     fontWeight: "600",
-    color: "#2b2724",
+    color: colors.text,
     fontSize: 12,
   },
   quarterBarTrack: {
     flex: 1,
     height: 12,
     borderRadius: 999,
-    backgroundColor: "#efe9e4",
+    backgroundColor: colors.surfaceMuted,
     overflow: "hidden",
   },
   quarterBarFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: "#eaa01f",
+    backgroundColor: colors.accent,
   },
   quarterValue: {
     width: 70,
     textAlign: "right",
     fontSize: 12,
-    color: "#2b2724",
+    color: colors.text,
     fontWeight: "600",
   },
   emptyNote: {
-    color: "#6a645d",
+    color: colors.textMuted,
     fontSize: 12,
     paddingTop: 4,
   },
@@ -959,14 +965,14 @@ const styles = StyleSheet.create({
     maxWidth: 18,
     minHeight: 2,
     borderRadius: 6,
-    backgroundColor: "#1c6b4f",
+    backgroundColor: colors.accent,
   },
   miniBarLabel: {
-    color: "#8a837b",
+    color: colors.textMuted,
     fontSize: 9,
   },
   pureAlcoholHint: {
-    color: "#8a837b",
+    color: colors.textMuted,
     fontSize: 12,
   },
 });

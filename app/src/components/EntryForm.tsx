@@ -3,6 +3,8 @@ import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-nativ
 import { DEFAULT_ABV, DRINK_CATEGORIES, SIZE_OPTIONS, formatSize } from "../lib/drinks";
 import { addDays, addMinutes, formatDateInput, formatTimeInput, parseDateTimeInput } from "../lib/dates";
 import { DrinkCategory, VolumeUnit } from "../lib/types";
+import { useTheme } from "../lib/theme-context";
+import type { Theme } from "../lib/theme";
 
 export type EntryFormValues = {
   category: DrinkCategory;
@@ -32,6 +34,8 @@ export default function EntryForm({
   unit = "l",
   busy = false,
 }: EntryFormProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const resolvedInitial = useMemo(() => {
     const category = initialValues?.category ?? fallbackCategory;
     const size = initialValues?.size_l ?? SIZE_OPTIONS[category][0];
@@ -170,6 +174,7 @@ export default function EntryForm({
             onChangeText={setCustomName}
             placeholder="e.g. Cider"
             style={styles.noteInput}
+            placeholderTextColor={colors.textMuted}
           />
         </View>
       ) : null}
@@ -183,6 +188,7 @@ export default function EntryForm({
             placeholder="10"
             keyboardType="decimal-pad"
             style={styles.noteInput}
+            placeholderTextColor={colors.textMuted}
           />
         </View>
       ) : null}
@@ -195,6 +201,7 @@ export default function EntryForm({
             onChangeText={setDateInput}
             style={styles.dateInput}
             placeholder="YYYY-MM-DD"
+            placeholderTextColor={colors.textMuted}
             keyboardType="numbers-and-punctuation"
             maxLength={10}
             autoCorrect={false}
@@ -205,6 +212,7 @@ export default function EntryForm({
             onChangeText={setTimeInput}
             style={styles.timeInput}
             placeholder="HH:mm"
+            placeholderTextColor={colors.textMuted}
             keyboardType="numbers-and-punctuation"
             maxLength={5}
             autoCorrect={false}
@@ -231,6 +239,7 @@ export default function EntryForm({
           onChangeText={setNote}
           placeholder="Add a short note"
           style={styles.noteInput}
+          placeholderTextColor={colors.textMuted}
         />
       </View>
 
@@ -252,7 +261,8 @@ export default function EntryForm({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Theme["colors"]) =>
+  StyleSheet.create({
   container: {
     gap: 16,
   },
@@ -262,7 +272,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1f1f1f",
+    color: colors.text,
   },
   chipRow: {
     flexDirection: "row",
@@ -274,19 +284,19 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#d6d1cc",
-    backgroundColor: "#f6f4f1",
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
   },
   chipSelected: {
-    backgroundColor: "#2b2b2b",
-    borderColor: "#2b2b2b",
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   chipText: {
-    color: "#2b2b2b",
+    color: colors.text,
     fontSize: 13,
   },
   chipTextSelected: {
-    color: "#f8f5f1",
+    color: colors.accentText,
   },
   dateRow: {
     flexDirection: "row",
@@ -295,20 +305,22 @@ const styles = StyleSheet.create({
   dateInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#d6d1cc",
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
+    color: colors.text,
   },
   timeInput: {
     width: 110,
     borderWidth: 1,
-    borderColor: "#d6d1cc",
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
+    color: colors.text,
   },
   quickRow: {
     flexDirection: "row",
@@ -319,19 +331,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: "#ece7e2",
+    backgroundColor: colors.surfaceMuted,
   },
   quickChipText: {
     fontSize: 12,
-    color: "#3a342e",
+    color: colors.textMuted,
   },
   noteInput: {
     borderWidth: 1,
-    borderColor: "#d6d1cc",
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
+    color: colors.text,
   },
   buttonRow: {
     flexDirection: "row",
@@ -344,20 +357,20 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   saveButton: {
-    backgroundColor: "#1c6b4f",
+    backgroundColor: colors.accent,
   },
   saveButtonDisabled: {
     opacity: 0.6,
   },
   saveText: {
-    color: "#f5f3ee",
+    color: colors.accentText,
     fontWeight: "600",
   },
   cancelButton: {
-    backgroundColor: "#ebe7e2",
+    backgroundColor: colors.surfaceMuted,
   },
   cancelText: {
-    color: "#3b3530",
+    color: colors.textMuted,
     fontWeight: "600",
   },
 });

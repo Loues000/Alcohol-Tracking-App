@@ -1,6 +1,6 @@
 export type DrinkCategory = "beer" | "wine" | "sekt" | "longdrink" | "shot" | "other";
 
-export type VolumeUnit = "l" | "ml";
+export type VolumeUnit = "l" | "ml" | "cl" | "oz";
 
 export type Entry = {
   id: string;

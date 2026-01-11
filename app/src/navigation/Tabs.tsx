@@ -5,10 +5,12 @@ import DiagramsScreen from "../screens/DiagramsScreen";
 import AddEntryScreen from "../screens/AddEntryScreen";
 import DataScreen from "../screens/DataScreen";
 import AccountScreen from "../screens/AccountScreen";
+import { useTheme } from "../lib/theme-context";
 
 const Tab = createBottomTabNavigator();
 
 export default function Tabs() {
+  const { colors } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -28,8 +30,12 @@ export default function Tabs() {
               return null;
           }
         },
-        tabBarActiveTintColor: "#1c6b4f",
-        tabBarInactiveTintColor: "#8a837b",
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+        },
         headerShown: false,
       })}
     >

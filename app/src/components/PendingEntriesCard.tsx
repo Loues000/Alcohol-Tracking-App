@@ -1,7 +1,10 @@
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import DrinkIcon from "./DrinkIcon";
 import { DRINK_CATEGORIES, formatSize } from "../lib/drinks";
 import { DrinkCategory, VolumeUnit } from "../lib/types";
+import { useTheme } from "../lib/theme-context";
+import type { Theme } from "../lib/theme";
 
 type PendingEntry = {
   id: string;
@@ -33,6 +36,8 @@ const formatPendingLabel = (entry: PendingEntry, unit: VolumeUnit) => {
 };
 
 export default function PendingEntriesCard({ entries, unit, onRemove }: PendingEntriesCardProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>Pending entries</Text>
@@ -40,7 +45,7 @@ export default function PendingEntriesCard({ entries, unit, onRemove }: PendingE
         {entries.map((entry) => (
           <View key={entry.id} style={styles.item}>
             <View style={styles.info}>
-              <DrinkIcon category={entry.category} size={14} color="#2b2b2b" />
+              <DrinkIcon category={entry.category} size={14} color={colors.text} />
               <Text style={styles.text}>{formatPendingLabel(entry, unit)}</Text>
             </View>
             <Pressable onPress={() => onRemove(entry.id)}>
@@ -53,47 +58,48 @@ export default function PendingEntriesCard({ entries, unit, onRemove }: PendingE
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#ece6e1",
-    gap: 10,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#2b2724",
-  },
-  list: {
-    marginTop: 6,
-    gap: 6,
-  },
-  item: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: "#f6f4f1",
-  },
-  info: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    flex: 1,
-  },
-  text: {
-    fontSize: 12,
-    color: "#2b2724",
-    flexShrink: 1,
-  },
-  remove: {
-    fontSize: 12,
-    color: "#8f3a3a",
-    fontWeight: "600",
-  },
-});
+const createStyles = (colors: Theme["colors"]) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 18,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 10,
+    },
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: colors.text,
+    },
+    list: {
+      marginTop: 6,
+      gap: 6,
+    },
+    item: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: 10,
+      backgroundColor: colors.surfaceMuted,
+    },
+    info: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      flex: 1,
+    },
+    text: {
+      fontSize: 12,
+      color: colors.text,
+      flexShrink: 1,
+    },
+    remove: {
+      fontSize: 12,
+      color: "#8f3a3a",
+      fontWeight: "600",
+    },
+  });

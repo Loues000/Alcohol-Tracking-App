@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { addDays, startOfDay, toDateKey } from "../lib/dates";
+import { useTheme } from "../lib/theme-context";
+import type { Theme } from "../lib/theme";
 
 const DAY_RANGE_DAYS = 365 * 25;
 const DAY_ITEM_WIDTH = 50;
@@ -14,6 +16,8 @@ type DayWheelProps = {
 };
 
 export default function DayWheel({ selectedDate, onSelectDate, onVisibleDateChange }: DayWheelProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const listRef = useRef<FlatList<Date>>(null);
   const lastVisibleIndex = useRef<number | null>(null);
   const { width } = useWindowDimensions();
@@ -98,37 +102,38 @@ export default function DayWheel({ selectedDate, onSelectDate, onVisibleDateChan
   );
 }
 
-const styles = StyleSheet.create({
-  dayWheel: {
-    paddingVertical: 6,
-  },
-  dayWheelItem: {
-    width: DAY_ITEM_WIDTH,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: "#f6f4f1",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "transparent",
-  },
-  dayWheelItemSelected: {
-    backgroundColor: "#1c6b4f",
-    borderColor: "#1c6b4f",
-  },
-  dayWheelItemToday: {
-    borderColor: "#1c6b4f",
-  },
-  dayWheelWeekday: {
-    fontSize: 10,
-    color: "#6a645d",
-    fontWeight: "600",
-  },
-  dayWheelDay: {
-    fontSize: 16,
-    color: "#2b2724",
-    fontWeight: "700",
-  },
-  dayWheelTextSelected: {
-    color: "#f5f3ee",
-  },
-});
+const createStyles = (colors: Theme["colors"]) =>
+  StyleSheet.create({
+    dayWheel: {
+      paddingVertical: 6,
+    },
+    dayWheelItem: {
+      width: DAY_ITEM_WIDTH,
+      paddingVertical: 8,
+      borderRadius: 12,
+      backgroundColor: colors.surfaceMuted,
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: "transparent",
+    },
+    dayWheelItemSelected: {
+      backgroundColor: colors.accent,
+      borderColor: colors.accent,
+    },
+    dayWheelItemToday: {
+      borderColor: colors.accent,
+    },
+    dayWheelWeekday: {
+      fontSize: 10,
+      color: colors.textMuted,
+      fontWeight: "600",
+    },
+    dayWheelDay: {
+      fontSize: 16,
+      color: colors.text,
+      fontWeight: "700",
+    },
+    dayWheelTextSelected: {
+      color: colors.accentText,
+    },
+  });
