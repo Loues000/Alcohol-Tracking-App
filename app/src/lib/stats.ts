@@ -21,8 +21,10 @@ export const groupEntriesByCategory = (entries: Entry[]) => {
   const counts: Record<DrinkCategory, number> = {
     beer: 0,
     wine: 0,
+    sekt: 0,
     longdrink: 0,
     shot: 0,
+    other: 0,
   };
 
   for (const entry of entries) {

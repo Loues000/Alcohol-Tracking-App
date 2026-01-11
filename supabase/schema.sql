@@ -15,10 +15,12 @@ create table if not exists public.entries (
   consumed_at timestamptz not null,
   category text not null,
   size_l numeric not null,
+  custom_name text,
+  abv_percent numeric,
   note text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint entries_category_check check (category in ('beer', 'wine', 'longdrink', 'shot')),
+  constraint entries_category_check check (category in ('beer', 'wine', 'sekt', 'longdrink', 'shot', 'other')),
   constraint entries_size_check check (size_l > 0)
 );
 

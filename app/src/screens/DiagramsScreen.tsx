@@ -3,6 +3,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "rea
 import { FontAwesome } from "@expo/vector-icons";
 import { formatShortDate, startOfDay, toDateKey } from "../lib/dates";
 import { useEntries } from "../lib/entries-context";
+import { Entry } from "../lib/types";
 
 const MONTH_LABELS = [
   "Jan",
@@ -28,6 +29,8 @@ type MonthStats = {
   avgPerDay: number;
   drinkingDays: number;
   drinkingDaysPercent: number;
+  maxLiters: number;
+  maxDate: Date | null;
 };
 
 type WeekdayStats = {
@@ -63,6 +66,15 @@ export default function DiagramsScreen() {
     [entries, year]
   );
 
+  const entriesByMonth = useMemo(() => {
+    const months: Entry[][] = Array.from({ length: 12 }, () => []);
+    entriesForYear.forEach((entry) => {
+      const month = new Date(entry.consumed_at).getMonth();
+      months[month].push(entry);
+    });
+    return months;
+  }, [entriesForYear]);
+
   const dateTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     for (const entry of entriesForYear) {
@@ -78,11 +90,7 @@ export default function DiagramsScreen() {
   );
 
   const monthStats = useMemo(() => {
-    const months: MonthStats[] = [];
-    for (let month = 0; month < 12; month += 1) {
-      const monthEntries = entriesForYear.filter(
-        (entry) => new Date(entry.consumed_at).getMonth() === month
-      );
+    return entriesByMonth.map((monthEntries, month) => {
       const liters = monthEntries.reduce((sum, entry) => sum + entry.size_l, 0);
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       const drinkingDays = new Set(
@@ -93,18 +101,16 @@ export default function DiagramsScreen() {
       const percentOfYear = totalLiters === 0 ? 0 : (liters / totalLiters) * 100;
       const avgPerDay = daysInMonth === 0 ? 0 : liters / daysInMonth;
       const drinkingDaysPercent = daysInMonth === 0 ? 0 : (drinkingDays / daysInMonth) * 100;
-
-      months.push({
+      return {
         month,
         liters,
         percentOfYear,
         avgPerDay,
         drinkingDays,
         drinkingDaysPercent,
-      });
-    }
-    return months;
-  }, [entriesForYear, totalLiters, year]);
+      };
+    });
+  }, [entriesByMonth, totalLiters, year]);
 
   const weekdayStats = useMemo(() => {
     const stats: WeekdayStats[] = [];

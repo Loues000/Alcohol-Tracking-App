@@ -9,40 +9,85 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<null | "apple" | "google">(null);
+  const busy = loading || oauthLoading !== null;
 
   const signIn = async () => {
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+    if (!trimmedEmail || !trimmedPassword) {
+      Alert.alert("Missing info", "Enter both email and password.");
+      return;
+    }
+
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) Alert.alert("Sign in failed", error.message);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password: trimmedPassword,
+      });
+      if (error) Alert.alert("Sign in failed", error.message);
+    } catch (err) {
+      Alert.alert("Sign in failed", err instanceof Error ? err.message : "Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const signUp = async () => {
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+    if (!trimmedEmail || !trimmedPassword) {
+      Alert.alert("Missing info", "Enter both email and password.");
+      return;
+    }
+
     setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password });
-    setLoading(false);
-    if (error) Alert.alert("Sign up failed", error.message);
-    else Alert.alert("Check your email", "Confirm your email to finish sign up (if enabled).");
+    try {
+      const { error } = await supabase.auth.signUp({ email: trimmedEmail, password: trimmedPassword });
+      if (error) {
+        Alert.alert("Sign up failed", error.message);
+      } else {
+        Alert.alert("Check your email", "Confirm your email to finish sign up (if enabled).");
+      }
+    } catch (err) {
+      Alert.alert("Sign up failed", err instanceof Error ? err.message : "Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const signInWithProvider = async (provider: "apple" | "google") => {
     setOauthLoading(provider);
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: REDIRECT_TO,
-        skipBrowserRedirect: true,
-      },
-    });
-    setOauthLoading(null);
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: REDIRECT_TO,
+          skipBrowserRedirect: true,
+        },
+      });
 
-    if (error) {
-      Alert.alert("Sign in failed", error.message);
-      return;
-    }
+      if (error) {
+        Alert.alert("Sign in failed", error.message);
+        return;
+      }
 
-    if (data?.url) {
+      if (!data?.url) {
+        Alert.alert("Sign in failed", "No redirect URL returned.");
+        return;
+      }
+
+      const canOpen = await Linking.canOpenURL(data.url);
+      if (!canOpen) {
+        Alert.alert("Sign in failed", "Unable to open the login link.");
+        return;
+      }
+
       await Linking.openURL(data.url);
+    } catch (err) {
+      Alert.alert("Sign in failed", err instanceof Error ? err.message : "Please try again.");
+    } finally {
+      setOauthLoading(null);
     }
   };
 
@@ -56,7 +101,7 @@ export default function LoginScreen() {
           <Pressable
             style={[styles.oauthButton, styles.appleButton]}
             onPress={() => signInWithProvider("apple")}
-            disabled={oauthLoading !== null}
+            disabled={busy}
           >
             <Text style={styles.oauthText}>
               {oauthLoading === "apple" ? "Connecting..." : "Continue with Apple"}
@@ -65,7 +110,7 @@ export default function LoginScreen() {
           <Pressable
             style={[styles.oauthButton, styles.googleButton]}
             onPress={() => signInWithProvider("google")}
-            disabled={oauthLoading !== null}
+            disabled={busy}
           >
             <Text style={styles.oauthText}>
               {oauthLoading === "google" ? "Connecting..." : "Continue with Google"}
@@ -97,13 +142,13 @@ export default function LoginScreen() {
         />
 
         <Pressable
-          style={[styles.primaryButton, loading && styles.buttonDisabled]}
+          style={[styles.primaryButton, busy && styles.buttonDisabled]}
           onPress={signIn}
-          disabled={loading}
+          disabled={busy}
         >
           <Text style={styles.primaryText}>{loading ? "Signing in..." : "Sign in"}</Text>
         </Pressable>
-        <Pressable style={styles.secondaryButton} onPress={signUp} disabled={loading}>
+        <Pressable style={[styles.secondaryButton, busy && styles.buttonDisabled]} onPress={signUp} disabled={busy}>
           <Text style={styles.secondaryText}>{loading ? "..." : "Create account"}</Text>
         </Pressable>
       </View>

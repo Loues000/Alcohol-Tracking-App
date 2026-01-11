@@ -16,8 +16,10 @@ import { countEntriesSince, getLastEntry, groupEntriesByCategory, groupEntriesBy
 const CATEGORY_COLORS: Record<string, string> = {
   beer: "#c59b49",
   wine: "#9b3b46",
+  sekt: "#d2b15a",
   longdrink: "#4f8ea8",
   shot: "#6f7a4f",
+  other: "#8b7f7a",
 };
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -33,10 +35,13 @@ const formatVolume = (value: number) => {
 export default function DashboardScreen() {
   const { entries } = useEntries();
   const now = new Date();
+  const nowMonth = now.getMonth();
+  const nowYear = now.getFullYear();
   const [year, setYear] = useState(now.getFullYear());
   const todayStart = startOfDay(now);
   const weekStart = startOfWeek(now);
   const monthStart = startOfMonth(now);
+  const monthStartTime = monthStart.getTime();
 
   const todayCount = countEntriesSince(entries, todayStart);
   const weekCount = countEntriesSince(entries, weekStart);
@@ -47,18 +52,25 @@ export default function DashboardScreen() {
     ? Math.max(0, Math.floor((now.getTime() - new Date(lastEntry.consumed_at).getTime()) / 60000))
     : null;
 
-  const monthEntries = entries.filter(
-    (entry) => new Date(entry.consumed_at).getTime() >= monthStart.getTime()
+  const monthEntries = useMemo(
+    () => entries.filter((entry) => new Date(entry.consumed_at).getTime() >= monthStartTime),
+    [entries, monthStartTime]
   );
-  const categoryCounts = groupEntriesByCategory(monthEntries);
-  const categoryTotal = Object.values(categoryCounts).reduce((acc, value) => acc + value, 0);
-  const categoryVolumes = DRINK_CATEGORIES.reduce<Record<string, number>>((acc, category) => {
-    acc[category.key] = 0;
-    return acc;
-  }, {});
-  for (const entry of monthEntries) {
-    categoryVolumes[entry.category] += entry.size_l;
-  }
+  const categoryCounts = useMemo(() => groupEntriesByCategory(monthEntries), [monthEntries]);
+  const categoryTotal = useMemo(
+    () => Object.values(categoryCounts).reduce((acc, value) => acc + value, 0),
+    [categoryCounts]
+  );
+  const categoryVolumes = useMemo(() => {
+    const totals = DRINK_CATEGORIES.reduce<Record<string, number>>((acc, category) => {
+      acc[category.key] = 0;
+      return acc;
+    }, {});
+    for (const entry of monthEntries) {
+      totals[entry.category] += entry.size_l;
+    }
+    return totals;
+  }, [monthEntries]);
 
   const countsByDate = useMemo(() => groupEntriesByDate(entries), [entries]);
   const volumeByDate = useMemo(() => {
@@ -74,39 +86,48 @@ export default function DashboardScreen() {
     return totals;
   }, [entries]);
 
-  const yearStart = startOfDay(new Date(year, 0, 1));
-  const yearEnd = new Date(year, 11, 31, 23, 59, 59, 999);
-  const gridStart = startOfWeek(yearStart);
-  const gridEnd = addDays(startOfWeek(yearEnd), 6);
-  const weeks: Date[] = [];
-  let cursor = new Date(gridStart);
-  while (cursor <= gridEnd) {
-    weeks.push(new Date(cursor));
-    cursor = addDays(cursor, 7);
-  }
+  const yearStart = useMemo(() => startOfDay(new Date(year, 0, 1)), [year]);
+  const yearEnd = useMemo(() => new Date(year, 11, 31, 23, 59, 59, 999), [year]);
+  const weeks = useMemo(() => {
+    const gridStart = startOfWeek(yearStart);
+    const gridEnd = addDays(startOfWeek(yearEnd), 6);
+    const result: Date[] = [];
+    let cursor = new Date(gridStart);
+    while (cursor <= gridEnd) {
+      result.push(new Date(cursor));
+      cursor = addDays(cursor, 7);
+    }
+    return result;
+  }, [yearStart, yearEnd]);
 
-  const monthLabels = weeks.map((weekStartDate, index) => {
-    const isFirst = index === 0;
-    const prevMonth = isFirst ? null : weeks[index - 1].getMonth();
-    const month = weekStartDate.getMonth();
-    const isInYear = weekStartDate >= yearStart && weekStartDate <= yearEnd;
-    const label =
-      isInYear && (isFirst || month !== prevMonth)
-        ? weekStartDate.toLocaleDateString("en-US", { month: "short" })
-        : "";
-    return { label, month, isInYear };
-  });
-
-  const targetMonth = year === now.getFullYear() ? now.getMonth() : 0;
-  const currentMonthIndex = Math.max(
-    0,
-    weeks.findIndex(
-      (weekStartDate) =>
-        weekStartDate.getMonth() === targetMonth &&
-        weekStartDate >= yearStart &&
-        weekStartDate <= yearEnd
-    )
+  const monthLabels = useMemo(
+    () =>
+      weeks.map((weekStartDate, index) => {
+        const isFirst = index === 0;
+        const prevMonth = isFirst ? null : weeks[index - 1].getMonth();
+        const month = weekStartDate.getMonth();
+        const isInYear = weekStartDate >= yearStart && weekStartDate <= yearEnd;
+        const label =
+          isInYear && (isFirst || month !== prevMonth)
+            ? weekStartDate.toLocaleDateString("en-US", { month: "short" })
+            : "";
+        return { label, month, isInYear };
+      }),
+    [weeks, yearStart, yearEnd]
   );
+
+  const currentMonthIndex = useMemo(() => {
+    const targetMonth = year === nowYear ? nowMonth : 0;
+    return Math.max(
+      0,
+      weeks.findIndex(
+        (weekStartDate) =>
+          weekStartDate.getMonth() === targetMonth &&
+          weekStartDate >= yearStart &&
+          weekStartDate <= yearEnd
+      )
+    );
+  }, [weeks, year, nowMonth, nowYear, yearStart, yearEnd]);
 
   const scrollRef = useRef<ScrollView>(null);
   const [containerWidth, setContainerWidth] = useState(0);

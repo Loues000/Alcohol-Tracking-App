@@ -9,6 +9,8 @@ export type EntryFormValues = {
   size_l: number;
   datetime: Date;
   note: string;
+  custom_name: string | null;
+  abv_percent: number | null;
 };
 
 type EntryFormProps = {
@@ -35,13 +37,19 @@ export default function EntryForm({
     const size = initialValues?.size_l ?? SIZE_OPTIONS[category][0];
     const datetime = initialValues?.datetime ?? new Date();
     const note = initialValues?.note ?? "";
-    return { category, size, datetime, note };
+    const customName = initialValues?.custom_name ?? "";
+    const abvValue = initialValues?.abv_percent;
+    const abvInput =
+      typeof abvValue === "number" && Number.isFinite(abvValue) ? `${abvValue}` : "";
+    return { category, size, datetime, note, customName, abvInput };
   }, [initialValues]);
 
   const [category, setCategory] = useState<DrinkCategory>(resolvedInitial.category);
   const [sizeL, setSizeL] = useState(resolvedInitial.size);
   const [datetime, setDatetime] = useState(resolvedInitial.datetime);
   const [note, setNote] = useState(resolvedInitial.note);
+  const [customName, setCustomName] = useState(resolvedInitial.customName);
+  const [abvInput, setAbvInput] = useState(resolvedInitial.abvInput);
   const [dateInput, setDateInput] = useState(formatDateInput(resolvedInitial.datetime));
   const [timeInput, setTimeInput] = useState(formatTimeInput(resolvedInitial.datetime));
 
@@ -50,6 +58,8 @@ export default function EntryForm({
     setSizeL(resolvedInitial.size);
     setDatetime(resolvedInitial.datetime);
     setNote(resolvedInitial.note);
+    setCustomName(resolvedInitial.customName);
+    setAbvInput(resolvedInitial.abvInput);
     setDateInput(formatDateInput(resolvedInitial.datetime));
     setTimeInput(formatTimeInput(resolvedInitial.datetime));
   }, [resolvedInitial]);
@@ -73,11 +83,35 @@ export default function EntryForm({
       Alert.alert("Check date/time", "Use YYYY-MM-DD and HH:mm.");
       return;
     }
+
+    let customNameValue: string | null = null;
+    const trimmedAbv = abvInput.trim();
+    const normalizedAbv = trimmedAbv.replace(",", ".");
+    const parsedAbv = trimmedAbv.length > 0 ? Number(normalizedAbv) : null;
+
+    if (category === "other") {
+      const trimmedName = customName.trim();
+      if (!trimmedName) {
+        Alert.alert("Missing name", "Please add a name for Other.");
+        return;
+      }
+      if (parsedAbv === null || !Number.isFinite(parsedAbv) || parsedAbv <= 0 || parsedAbv > 100) {
+        Alert.alert("Check ABV", "Enter a number between 0 and 100.");
+        return;
+      }
+      customNameValue = trimmedName;
+    } else if (parsedAbv !== null && (!Number.isFinite(parsedAbv) || parsedAbv <= 0 || parsedAbv > 100)) {
+      Alert.alert("Check ABV", "Enter a number between 0 and 100.");
+      return;
+    }
+
     await onSubmit({
       category,
       size_l: sizeL,
       datetime: parsed,
       note: note.trim(),
+      custom_name: customNameValue,
+      abv_percent: parsedAbv,
     });
   };
 
@@ -121,6 +155,29 @@ export default function EntryForm({
             );
           })}
         </View>
+      </View>
+
+      {category === "other" ? (
+        <View style={styles.section}>
+          <Text style={styles.label}>Name</Text>
+          <TextInput
+            value={customName}
+            onChangeText={setCustomName}
+            placeholder="e.g. Cider"
+            style={styles.noteInput}
+          />
+        </View>
+      ) : null}
+
+      <View style={styles.section}>
+        <Text style={styles.label}>ABV %</Text>
+        <TextInput
+          value={abvInput}
+          onChangeText={(value) => setAbvInput(value.replace(/[^0-9.,]/g, ""))}
+          placeholder="e.g. 5"
+          keyboardType="decimal-pad"
+          style={styles.noteInput}
+        />
       </View>
 
       <View style={styles.section}>

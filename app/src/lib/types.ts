@@ -1,4 +1,4 @@
-export type DrinkCategory = "beer" | "wine" | "longdrink" | "shot";
+export type DrinkCategory = "beer" | "wine" | "sekt" | "longdrink" | "shot" | "other";
 
 export type VolumeUnit = "l" | "ml";
 
@@ -8,6 +8,8 @@ export type Entry = {
   consumed_at: string;
   category: DrinkCategory;
   size_l: number;
+  custom_name: string | null;
+  abv_percent: number | null;
   note: string | null;
   created_at: string;
 };
@@ -16,6 +18,8 @@ export type EntryInput = {
   consumed_at: string;
   category: DrinkCategory;
   size_l: number;
+  custom_name?: string | null;
+  abv_percent?: number | null;
   note?: string | null;
 };
 

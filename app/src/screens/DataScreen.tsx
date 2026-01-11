@@ -107,24 +107,42 @@ export default function DataScreen() {
   const handleUpdate = async (values: EntryFormValues) => {
     if (!editingEntry) return;
     setSaving(true);
-    const updated = await updateEntry(editingEntry.id, {
-      category: values.category,
-      size_l: values.size_l,
-      consumed_at: values.datetime.toISOString(),
-      note: values.note.trim().length > 0 ? values.note.trim() : null,
-    });
-    setSaving(false);
+    const customName =
+      values.category === "other" && values.custom_name
+        ? values.custom_name.trim()
+        : null;
+    try {
+      const updated = await updateEntry(editingEntry.id, {
+        category: values.category,
+        size_l: values.size_l,
+        consumed_at: values.datetime.toISOString(),
+        note: values.note.trim().length > 0 ? values.note.trim() : null,
+        custom_name: customName && customName.length > 0 ? customName : null,
+        abv_percent: values.abv_percent ?? null,
+      });
 
-    if (!updated) {
-      Alert.alert("Update failed", error ?? "Please try again.");
-      return;
+      if (!updated) {
+        Alert.alert("Update failed", error ?? "Please try again.");
+        return;
+      }
+
+      setEditingEntry(null);
+    } finally {
+      setSaving(false);
     }
-
-    setEditingEntry(null);
   };
+
+  const getEntryDetails = (entry: Entry) =>
+    [
+      entry.category === "other" ? entry.custom_name ?? null : null,
+      entry.abv_percent !== null ? `${entry.abv_percent}% ABV` : null,
+    ]
+      .filter(Boolean)
+      .join(" - ") || null;
 
   const renderEntry = (item: Entry) => {
     const when = new Date(item.consumed_at);
+    const customDetails = getEntryDetails(item);
     return (
       <View key={item.id} style={styles.entryCard}>
         <View style={styles.entryHeader}>
@@ -135,6 +153,7 @@ export default function DataScreen() {
           <Text style={styles.entrySize}>{formatSize(item.size_l, settings.unit)}</Text>
         </View>
         <Text style={styles.entryMeta}>{formatTimeInput(when)}</Text>
+        {customDetails ? <Text style={styles.entryMeta}>{customDetails}</Text> : null}
         {item.note ? <Text style={styles.entryNote}>{item.note}</Text> : null}
         <View style={styles.entryActions}>
           <Pressable style={styles.actionButton} onPress={() => setEditingEntry(item)}>
@@ -183,6 +202,8 @@ export default function DataScreen() {
       size_l: editingEntry.size_l,
       datetime: new Date(editingEntry.consumed_at),
       note: editingEntry.note ?? "",
+      custom_name: editingEntry.custom_name ?? null,
+      abv_percent: editingEntry.abv_percent ?? null,
     };
   }, [editingEntry]);
 
