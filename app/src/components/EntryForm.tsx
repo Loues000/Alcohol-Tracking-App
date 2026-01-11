@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { DRINK_CATEGORIES, SIZE_OPTIONS, formatSize } from "../lib/drinks";
+import { DEFAULT_ABV, DRINK_CATEGORIES, SIZE_OPTIONS, formatSize } from "../lib/drinks";
 import { addDays, addMinutes, formatDateInput, formatTimeInput, parseDateTimeInput } from "../lib/dates";
 import { DrinkCategory, VolumeUnit } from "../lib/types";
 
@@ -71,6 +71,13 @@ export default function EntryForm({
     }
   }, [category, sizeL]);
 
+  useEffect(() => {
+    if (category !== "other") {
+      setCustomName("");
+      setAbvInput("");
+    }
+  }, [category]);
+
   const applyDate = (next: Date) => {
     setDatetime(next);
     setDateInput(formatDateInput(next));
@@ -87,7 +94,8 @@ export default function EntryForm({
     let customNameValue: string | null = null;
     const trimmedAbv = abvInput.trim();
     const normalizedAbv = trimmedAbv.replace(",", ".");
-    const parsedAbv = trimmedAbv.length > 0 ? Number(normalizedAbv) : null;
+    const parsedAbv = trimmedAbv.length > 0 ? Number(normalizedAbv) : DEFAULT_ABV.other ?? 10;
+    const shouldUseCustomAbv = category === "other";
 
     if (category === "other") {
       const trimmedName = customName.trim();
@@ -95,14 +103,11 @@ export default function EntryForm({
         Alert.alert("Missing name", "Please add a name for Other.");
         return;
       }
-      if (parsedAbv === null || !Number.isFinite(parsedAbv) || parsedAbv <= 0 || parsedAbv > 100) {
+      if (!Number.isFinite(parsedAbv) || parsedAbv <= 0 || parsedAbv > 100) {
         Alert.alert("Check ABV", "Enter a number between 0 and 100.");
         return;
       }
       customNameValue = trimmedName;
-    } else if (parsedAbv !== null && (!Number.isFinite(parsedAbv) || parsedAbv <= 0 || parsedAbv > 100)) {
-      Alert.alert("Check ABV", "Enter a number between 0 and 100.");
-      return;
     }
 
     await onSubmit({
@@ -111,7 +116,7 @@ export default function EntryForm({
       datetime: parsed,
       note: note.trim(),
       custom_name: customNameValue,
-      abv_percent: parsedAbv,
+      abv_percent: shouldUseCustomAbv ? parsedAbv : null,
     });
   };
 
@@ -169,16 +174,18 @@ export default function EntryForm({
         </View>
       ) : null}
 
-      <View style={styles.section}>
-        <Text style={styles.label}>ABV %</Text>
-        <TextInput
-          value={abvInput}
-          onChangeText={(value) => setAbvInput(value.replace(/[^0-9.,]/g, ""))}
-          placeholder="e.g. 5"
-          keyboardType="decimal-pad"
-          style={styles.noteInput}
-        />
-      </View>
+      {category === "other" ? (
+        <View style={styles.section}>
+          <Text style={styles.label}>ABV % (optional, default 10)</Text>
+          <TextInput
+            value={abvInput}
+            onChangeText={(value) => setAbvInput(value.replace(/[^0-9.,]/g, ""))}
+            placeholder="10"
+            keyboardType="decimal-pad"
+            style={styles.noteInput}
+          />
+        </View>
+      ) : null}
 
       <View style={styles.section}>
         <Text style={styles.label}>Date and time</Text>

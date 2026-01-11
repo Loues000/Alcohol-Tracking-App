@@ -10,7 +10,7 @@ export const DRINK_CATEGORIES: Array<{
   { key: "wine", label: "Wine", sizes: [0.1, 0.2, 0.75], defaultAbv: 12 },
   { key: "sekt", label: "Sparkling Wine", sizes: [0.1, 0.2], defaultAbv: 11 },
   { key: "longdrink", label: "Long Drink", sizes: [0.2, 0.3], defaultAbv: 12 },
-  { key: "shot", label: "Shot", sizes: [0.02, 0.04], defaultAbv: 40 },
+  { key: "shot", label: "Shot", sizes: [0.02, 0.04], defaultAbv: 35 },
   { key: "other", label: "Other", sizes: [0.1, 0.2, 0.3, 0.4, 0.5, 1.0], defaultAbv: null },
 ];
 

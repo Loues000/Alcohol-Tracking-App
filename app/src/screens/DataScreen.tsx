@@ -135,7 +135,7 @@ export default function DataScreen() {
   const getEntryDetails = (entry: Entry) =>
     [
       entry.category === "other" ? entry.custom_name ?? null : null,
-      entry.abv_percent !== null ? `${entry.abv_percent}% ABV` : null,
+      entry.category === "other" && entry.abv_percent !== null ? `${entry.abv_percent}% ABV` : null,
     ]
       .filter(Boolean)
       .join(" - ") || null;

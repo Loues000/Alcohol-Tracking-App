@@ -83,13 +83,8 @@ export default function AddEntryScreen() {
   }, [category, sizeL]);
 
   useEffect(() => {
-    const defaultAbv = DEFAULT_ABV[category];
-    if (category === "other") {
+    if (category !== "other") {
       setAbvInput("");
-      return;
-    }
-    if (defaultAbv !== null && defaultAbv !== undefined) {
-      setAbvInput(`${defaultAbv}`);
     }
   }, [category]);
 
@@ -111,35 +106,23 @@ export default function AddEntryScreen() {
   }, [count]);
 
   const validateEntryFields = () => {
-    const trimmedAbv = abvInput.trim();
-    const normalizedAbv = trimmedAbv.replace(",", ".");
-    const defaultAbv = DEFAULT_ABV[category];
-    const parsedAbv =
-      trimmedAbv.length === 0
-        ? defaultAbv !== null && defaultAbv !== undefined
-          ? defaultAbv
-          : null
-        : Number(normalizedAbv);
-
     if (category === "other") {
+      const trimmedAbv = abvInput.trim();
+      const normalizedAbv = trimmedAbv.replace(",", ".");
+      const parsedAbv = trimmedAbv.length === 0 ? DEFAULT_ABV.other ?? 10 : Number(normalizedAbv);
       const trimmedName = customName.trim();
       if (!trimmedName) {
         Alert.alert("Missing name", "Please add a name for Other.");
         return null;
       }
-      if (parsedAbv === null || !Number.isFinite(parsedAbv) || parsedAbv <= 0 || parsedAbv > 100) {
+      if (!Number.isFinite(parsedAbv) || parsedAbv <= 0 || parsedAbv > 100) {
         Alert.alert("Check ABV", "Enter a number between 0 and 100.");
         return null;
       }
       return { custom_name: trimmedName, abv_percent: parsedAbv };
     }
 
-    if (parsedAbv !== null && (!Number.isFinite(parsedAbv) || parsedAbv <= 0 || parsedAbv > 100)) {
-      Alert.alert("Check ABV", "Enter a number between 0 and 100.");
-      return null;
-    }
-
-    return { custom_name: null, abv_percent: parsedAbv };
+    return { custom_name: null, abv_percent: null };
   };
 
   const handleSave = async () => {
@@ -218,11 +201,7 @@ export default function AddEntryScreen() {
     setSizeL(fallbackSize);
     setCount("1");
     setCustomName("");
-    if (fallbackCategory === "other") {
-      setAbvInput("");
-    } else if (DEFAULT_ABV[fallbackCategory] !== null && DEFAULT_ABV[fallbackCategory] !== undefined) {
-      setAbvInput(`${DEFAULT_ABV[fallbackCategory]}`);
-    }
+    setAbvInput("");
   };
 
   const handleRemovePending = (id: string) => {
@@ -378,16 +357,18 @@ export default function AddEntryScreen() {
             </View>
           ) : null}
 
-          <View style={styles.section}>
-            <Text style={styles.label}>ABV %</Text>
-            <TextInput
-              value={abvInput}
-              onChangeText={(value) => setAbvInput(value.replace(/[^0-9.,]/g, ""))}
-              placeholder="e.g. 5"
-              keyboardType="decimal-pad"
-              style={styles.textInput}
-            />
-          </View>
+          {category === "other" ? (
+            <View style={styles.section}>
+              <Text style={styles.label}>ABV % (optional, default 10)</Text>
+              <TextInput
+                value={abvInput}
+                onChangeText={(value) => setAbvInput(value.replace(/[^0-9.,]/g, ""))}
+                placeholder="10"
+                keyboardType="decimal-pad"
+                style={styles.textInput}
+              />
+            </View>
+          ) : null}
 
           <View style={styles.section}>
             <View style={styles.rowCompact}>
