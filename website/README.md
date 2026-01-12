@@ -34,16 +34,16 @@ Simply open `index.html` in your browser, or use a local server:
 
 ```bash
 # Using Python
-python -m http.server 8000
+python -m http.server 3137
 
 # Using Node.js (npx)
-npx serve .
+npx serve . -l 3137
 
 # Using PHP
-php -S localhost:8000
+php -S localhost:3137
 ```
 
-Then visit `http://localhost:8000`
+Then visit `http://localhost:3137`
 
 ## Customization
 
