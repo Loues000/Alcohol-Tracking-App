@@ -18,6 +18,10 @@ yarn-error.log*
 .vscode
 .cursor
 
+# AI Tooling
+claude.md
+agent.md
+
 #documentation
 docs/
 .docx
