@@ -1,41 +1,52 @@
-# Alcohol Tracking App
+# Alcohol Tracker
 
-Mobile MVP for tracking drinks, built with Expo and Supabase.
+Simple MVP for tracking drinks. Built with Expo and Supabase.
 
-## Features
-- Add entries with date/time, drink type, size, count, and note.
-- Dashboard heatmap with yearly view and category summary.
-- Diagrams with month, weekday, and quarter tables.
-- History grouped by day with expandable details.
-- Local settings (unit, default drink, default size).
+## Setup
 
-## Tech Stack
-- Expo (React Native)
-- Supabase (auth + database)
-
-## Getting Started
-1. Install dependencies:
-   ```
+1. **Install deps**
+   ```bash
    cd app
    npm install
    ```
-2. Create `app/.env`:
+
+2. **Environment**
+   Create `app/.env`:
    ```
-   EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
-   EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   EXPO_PUBLIC_SUPABASE_URL=your_url
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=your_key
    ```
-3. Start the app:
-   ```
+
+3. **Run**
+   ```bash
    npm start
    ```
 
-## Database
-- Schema lives in `supabase/schema.sql`.
-- The app expects the `entries` and `profiles` tables as defined there.
+## Supabase
 
-## Project Structure
-- `app/` - Expo app source
-- `supabase/` - Supabase schema and config
+Run `supabase/schema.sql` in the Supabase SQL Editor. This creates:
+- `profiles`: User info synced from Auth.
+- `entries`: Individual drink logs with category, size, ABV, and notes.
+- RLS policies to keep data private to the owner.
+- `updated_at` triggers for sync support.
 
-## Notes
-- Keep `app/.env` out of version control.
+## Sync & Offline
+
+- **Local Queue**: Failed writes are queued and retried with backoff.
+- **Indicators**: The history view shows "Pending" or "Failed" badges for unsynced rows.
+- **Manual Sync**: Pull-to-refresh on the Data screen triggers a sync attempt.
+
+## Future / Out of Scope
+
+Planned features for post-v1:
+- Notifications & reminders
+- Goals, limits, and achievements
+- iOS/Android widgets
+- CSV export/import
+- Leaderboards & social features
+- Barcode scanning for drinks
+
+## Troubleshooting
+
+- **Empty data**: Ensure RLS is enabled and policies from `schema.sql` are active.
+- **Redirect issues**: Verify your app's deep link scheme matches the Supabase Auth configuration.
