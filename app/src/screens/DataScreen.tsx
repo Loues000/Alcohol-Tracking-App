@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Alert, FlatList, Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
 import DrinkIcon from "../components/DrinkIcon";
 import EntryForm, { EntryFormValues } from "../components/EntryForm";
+import ErrorBanner from "../components/ErrorBanner";
 import { CATEGORY_LABELS, formatSize } from "../lib/drinks";
 import {
   formatShortDate,
@@ -9,7 +10,7 @@ import {
   startOfDay,
   startOfMonth,
   startOfWeek,
-  toDateKey,
+  toLocalDayKeyFromISO,
 } from "../lib/dates";
 import { useEntries } from "../lib/entries-context";
 import { useLocalSettings } from "../lib/local-settings";
@@ -27,7 +28,19 @@ const FILTERS: Array<{ key: FilterKey; label: string }> = [
 ];
 
 export default function DataScreen() {
-  const { entries, loading, refresh, deleteEntry, updateEntry, error } = useEntries();
+  const {
+    entries,
+    loading,
+    refresh,
+    deleteEntry,
+    updateEntry,
+    error,
+    pendingOps,
+    syncPending,
+    syncing,
+    syncError,
+    restoreEntry,
+  } = useEntries();
   const { settings } = useLocalSettings();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -35,6 +48,9 @@ export default function DataScreen() {
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
   const [saving, setSaving] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
+  const pendingCount = pendingOps.length;
+  const [lastDeleted, setLastDeleted] = useState<Entry | null>(null);
+  const [undoTimer, setUndoTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   const filteredEntries = useMemo(() => {
     if (filter === "all") return entries;
@@ -61,7 +77,7 @@ export default function DataScreen() {
 
     for (const entry of sorted) {
       const date = startOfDay(new Date(entry.consumed_at));
-      const key = toDateKey(date);
+      const key = toLocalDayKeyFromISO(entry.consumed_at);
       const existing = groups.get(key);
       if (existing) {
         existing.entries.push(entry);
@@ -92,6 +108,25 @@ export default function DataScreen() {
     setExpandedDays((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const handleRefresh = async () => {
+    await syncPending();
+    await refresh();
+  };
+
+  const handleUndoDelete = async () => {
+    if (!lastDeleted) return;
+    if (undoTimer) {
+      clearTimeout(undoTimer);
+      setUndoTimer(null);
+    }
+    const entryToRestore = lastDeleted;
+    setLastDeleted(null);
+    const restored = await restoreEntry(entryToRestore);
+    if (!restored) {
+      Alert.alert("Undo failed", error ?? "Please try again.");
+    }
+  };
+
   const handleDelete = (entry: Entry) => {
     Alert.alert("Delete entry", "This removes the entry permanently.", [
       { text: "Cancel", style: "cancel" },
@@ -102,7 +137,12 @@ export default function DataScreen() {
           const ok = await deleteEntry(entry.id);
           if (!ok) {
             Alert.alert("Delete failed", error ?? "Please try again.");
+            return;
           }
+          if (undoTimer) clearTimeout(undoTimer);
+          setLastDeleted(entry);
+          const timerId = setTimeout(() => setLastDeleted(null), 5000);
+          setUndoTimer(timerId);
         },
       },
     ]);
@@ -139,7 +179,7 @@ export default function DataScreen() {
   const getEntryDetails = (entry: Entry) =>
     [
       entry.category === "other" ? entry.custom_name ?? null : null,
-      entry.category === "other" && entry.abv_percent !== null ? `${entry.abv_percent}% ABV` : null,
+      entry.abv_percent !== null ? `${entry.abv_percent}% ABV` : null,
     ]
       .filter(Boolean)
       .join(" - ") || null;
@@ -156,7 +196,14 @@ export default function DataScreen() {
           </View>
           <Text style={styles.entrySize}>{formatSize(item.size_l, settings.unit)}</Text>
         </View>
-        <Text style={styles.entryMeta}>{formatTimeInput(when)}</Text>
+        <View style={styles.entryMetaRow}>
+          <Text style={styles.entryMeta}>{formatTimeInput(when)}</Text>
+          {item.pending ? (
+            <Text style={[styles.pendingBadge, item.syncError ? styles.pendingBadgeError : null]}>
+              {item.syncError ? "Sync failed" : "Pending sync"}
+            </Text>
+          ) : null}
+        </View>
         {customDetails ? <Text style={styles.entryMeta}>{customDetails}</Text> : null}
         {item.note ? <Text style={styles.entryNote}>{item.note}</Text> : null}
         <View style={styles.entryActions}>
@@ -217,12 +264,40 @@ export default function DataScreen() {
         data={groupedEntries}
         keyExtractor={(item) => item.key}
         renderItem={renderDayGroup}
-        refreshing={loading}
-        onRefresh={refresh}
+        refreshing={loading || syncing}
+        onRefresh={handleRefresh}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.title}>History</Text>
+            {pendingCount > 0 || syncError ? (
+              <View style={styles.syncBanner}>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={styles.syncTitle}>
+                    {pendingCount > 0
+                      ? `${pendingCount} pending change${pendingCount > 1 ? "s" : ""}`
+                      : "All changes are synced"}
+                  </Text>
+                  {syncError ? <Text style={styles.syncError}>{syncError}</Text> : null}
+                </View>
+                <Pressable
+                  style={[styles.syncButton, syncing && styles.syncButtonDisabled]}
+                  onPress={syncPending}
+                  disabled={syncing}
+                >
+                  <Text style={styles.syncButtonText}>{syncing ? "Syncing..." : "Sync now"}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {error ? <ErrorBanner message={error} onRetry={handleRefresh} /> : null}
+            {lastDeleted ? (
+              <View style={styles.undoBanner}>
+                <Text style={styles.undoText}>Entry deleted</Text>
+                <Pressable style={styles.undoButton} onPress={handleUndoDelete}>
+                  <Text style={styles.undoButtonText}>Undo</Text>
+                </Pressable>
+              </View>
+            ) : null}
             <View style={styles.filterRow}>
               {FILTERS.map((item) => {
                 const selected = item.key === filter;
@@ -284,6 +359,64 @@ const createStyles = (colors: Theme["colors"]) =>
     fontSize: 22,
     fontWeight: "700",
     color: colors.text,
+  },
+  syncBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
+  },
+  syncTitle: {
+    color: colors.text,
+    fontWeight: "600",
+  },
+  syncError: {
+    color: "#8f3a3a",
+    fontSize: 12,
+  },
+  syncButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: colors.accent,
+  },
+  syncButtonDisabled: {
+    opacity: 0.7,
+  },
+  syncButtonText: {
+    color: colors.accentText,
+    fontWeight: "700",
+  },
+  undoBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  undoText: {
+    color: colors.text,
+    fontWeight: "600",
+  },
+  undoButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
+  },
+  undoButtonText: {
+    color: colors.text,
+    fontWeight: "700",
   },
   filterRow: {
     flexDirection: "row",
@@ -378,9 +511,28 @@ const createStyles = (colors: Theme["colors"]) =>
     color: colors.textMuted,
     fontSize: 13,
   },
+  entryMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
   entryMeta: {
     color: colors.textMuted,
     fontSize: 12,
+  },
+  pendingBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: "#e6f0e9",
+    color: "#234d36",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  pendingBadgeError: {
+    backgroundColor: "#f0dede",
+    color: "#8f3a3a",
   },
   entryNote: {
     color: colors.textMuted,

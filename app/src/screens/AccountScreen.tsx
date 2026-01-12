@@ -4,6 +4,7 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -12,6 +13,7 @@ import {
 import { DRINK_CATEGORIES, SIZE_OPTIONS, formatSize } from "../lib/drinks";
 import { useLocalSettings } from "../lib/local-settings";
 import { useProfile } from "../lib/profile-context";
+import { useEntries } from "../lib/entries-context";
 import { supabase } from "../lib/supabase";
 import { DrinkCategory, VolumeUnit } from "../lib/types";
 import { ACCENT_COLORS, ThemeAccent, ThemeMode } from "../lib/theme";
@@ -37,6 +39,7 @@ const SETTINGS_TABS: Array<{ key: SettingsTab; label: string }> = [
 
 export default function AccountScreen() {
   const { profile, updateProfile, error } = useProfile();
+  const { entries } = useEntries();
   const { settings, updateSettings } = useLocalSettings();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -143,6 +146,16 @@ export default function AccountScreen() {
         "Data removed",
         "Your entries were deleted, but the auth account could not be removed. Configure the delete_account function to fully remove users."
       );
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const payload = JSON.stringify(entries, null, 2);
+      await Share.share({ message: payload });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Please try again.";
+      Alert.alert("Export failed", message);
     }
   };
 
@@ -329,6 +342,9 @@ export default function AccountScreen() {
         {activeTab === "actions" ? (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Account actions</Text>
+            <Pressable style={styles.actionButton} onPress={handleExport}>
+              <Text style={styles.actionText}>Export data (JSON)</Text>
+            </Pressable>
             <Pressable style={styles.actionButton} onPress={logout}>
               <Text style={styles.actionText}>Sign out</Text>
             </Pressable>
@@ -341,6 +357,10 @@ export default function AccountScreen() {
                 {deleting ? "Deleting..." : "Delete account"}
               </Text>
             </Pressable>
+            <Text style={styles.privacyCopy}>
+              We store your entries and profile securely in Supabase. Export creates a JSON copy; delete removes
+              your data from profiles and entries (auth removal depends on server config).
+            </Text>
           </View>
         ) : null}
       </ScrollView>
@@ -482,6 +502,12 @@ const createStyles = (colors: Theme["colors"]) =>
   actionText: {
     fontWeight: "600",
     color: colors.text,
+  },
+  privacyCopy: {
+    color: colors.textMuted,
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 6,
   },
   deleteButton: {
     backgroundColor: "#f0dede",

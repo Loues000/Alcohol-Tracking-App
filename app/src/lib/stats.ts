@@ -1,5 +1,5 @@
 import { Entry, DrinkCategory } from "./types";
-import { addDays, startOfDay, toDateKey } from "./dates";
+import { addDays, startOfDay, toDateKey, toLocalDayKeyFromISO } from "./dates";
 
 export const countEntriesSince = (entries: Entry[], start: Date) => {
   const startTime = start.getTime();
@@ -11,7 +11,7 @@ export const getLastEntry = (entries: Entry[]) => entries[0] ?? null;
 export const groupEntriesByDate = (entries: Entry[]) => {
   const counts: Record<string, number> = {};
   for (const entry of entries) {
-    const key = toDateKey(startOfDay(new Date(entry.consumed_at)));
+    const key = toLocalDayKeyFromISO(entry.consumed_at);
     counts[key] = (counts[key] ?? 0) + 1;
   }
   return counts;

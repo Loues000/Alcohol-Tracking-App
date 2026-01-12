@@ -72,3 +72,8 @@ export const addDays = (date: Date, days: number) => {
   next.setDate(next.getDate() + days);
   return next;
 };
+
+export const toLocalDayKeyFromISO = (isoString: string) => {
+  const value = new Date(isoString);
+  return toDateKey(startOfDay(value));
+};

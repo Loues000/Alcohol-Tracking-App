@@ -14,7 +14,7 @@ import { StreakCard } from "../components/dashboard/StreakCard";
 import { SummaryCard } from "../components/dashboard/SummaryCard";
 import { YearlyHeatmap } from "../components/dashboard/YearlyHeatmap";
 import { DRINK_CATEGORIES } from "../lib/drinks";
-import { startOfDay, startOfMonth, startOfWeek, toDateKey } from "../lib/dates";
+import { startOfDay, startOfMonth, startOfWeek, toLocalDayKeyFromISO } from "../lib/dates";
 import { useEntries } from "../lib/entries-context";
 import { useLocalSettings } from "../lib/local-settings";
 import { useProfile } from "../lib/profile-context";
@@ -91,7 +91,7 @@ export default function DashboardScreen() {
         monthVolumeL += entry.size_l;
       }
 
-      const key = toDateKey(startOfDay(consumedAt));
+      const key = toLocalDayKeyFromISO(entry.consumed_at);
       countsByDate[key] = (countsByDate[key] ?? 0) + 1;
       const bucket = volumeByDate[key];
       if (bucket) {

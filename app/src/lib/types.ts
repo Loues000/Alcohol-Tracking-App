@@ -12,6 +12,9 @@ export type Entry = {
   abv_percent: number | null;
   note: string | null;
   created_at: string;
+  updated_at: string;
+  pending?: boolean;
+  syncError?: string | null;
 };
 
 export type EntryInput = {

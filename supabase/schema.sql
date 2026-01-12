@@ -26,6 +26,28 @@ create table if not exists public.entries (
 
 create index if not exists entries_user_consumed_at_idx on public.entries (user_id, consumed_at desc);
 
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at
+before update on public.profiles
+for each row execute procedure public.set_updated_at();
+
+drop trigger if exists entries_set_updated_at on public.entries;
+create trigger entries_set_updated_at
+before update on public.entries
+for each row execute procedure public.set_updated_at();
+
 alter table public.profiles enable row level security;
 alter table public.entries enable row level security;
 

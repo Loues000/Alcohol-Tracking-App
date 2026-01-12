@@ -5,7 +5,7 @@ import { DRINK_CATEGORIES } from "../lib/drinks";
 import { CATEGORY_COLORS } from "../lib/dashboard-theme";
 import { getEntryEthanolGrams, toStandardDrinks } from "../lib/alcohol";
 import { formatVolume } from "../lib/dashboard-utils";
-import { formatShortDate, startOfDay, toDateKey } from "../lib/dates";
+import { formatShortDate, startOfDay, toDateKey, toLocalDayKeyFromISO } from "../lib/dates";
 import { useEntries } from "../lib/entries-context";
 import { useLocalSettings } from "../lib/local-settings";
 import { DrinkCategory, Entry } from "../lib/types";
@@ -209,7 +209,7 @@ export default function DiagramsScreen() {
   const dateTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     for (const entry of entriesForYear) {
-      const key = toDateKey(startOfDay(new Date(entry.consumed_at)));
+      const key = toLocalDayKeyFromISO(entry.consumed_at);
       totals[key] = (totals[key] ?? 0) + entry.size_l;
     }
     return totals;
@@ -225,12 +225,12 @@ export default function DiagramsScreen() {
       const liters = monthEntries.reduce((sum, entry) => sum + entry.size_l, 0);
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       const drinkingDays = new Set(
-        monthEntries.map((entry) => toDateKey(startOfDay(new Date(entry.consumed_at))))
+        monthEntries.map((entry) => toLocalDayKeyFromISO(entry.consumed_at))
       ).size;
 
       const monthDayTotals: Record<string, number> = {};
       for (const entry of monthEntries) {
-        const key = toDateKey(startOfDay(new Date(entry.consumed_at)));
+        const key = toLocalDayKeyFromISO(entry.consumed_at);
         monthDayTotals[key] = (monthDayTotals[key] ?? 0) + entry.size_l;
       }
       let maxLiters = 0;

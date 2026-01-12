@@ -12,6 +12,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import DrinkIcon from "../components/DrinkIcon";
 import DayWheel from "../components/DayWheel";
+import ErrorBanner from "../components/ErrorBanner";
 import MonthYearPickerModal from "../components/MonthYearPickerModal";
 import NoteModal from "../components/NoteModal";
 import PendingEntriesCard from "../components/PendingEntriesCard";
@@ -51,7 +52,7 @@ type PendingEntry = {
 
 export default function AddEntryScreen() {
   const { createEntries, error } = useEntries();
-  const { settings, loading: settingsLoading } = useLocalSettings();
+  const { settings, loading: settingsLoading, updateSettings } = useLocalSettings();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const now = new Date();
@@ -79,6 +80,7 @@ export default function AddEntryScreen() {
     () => Array.from({ length: 51 }, (_, index) => yearRangeStart + index),
     [yearRangeStart]
   );
+  const busy = saving || settingsLoading;
 
   useEffect(() => {
     if (!SIZE_OPTIONS[category].includes(sizeL)) {
@@ -126,7 +128,8 @@ export default function AddEntryScreen() {
       return { custom_name: trimmedName, abv_percent: parsedAbv };
     }
 
-    return { custom_name: null, abv_percent: null };
+    const defaultAbv = DEFAULT_ABV[category] ?? null;
+    return { custom_name: null, abv_percent: defaultAbv };
   };
 
   const handleSave = async () => {
@@ -167,6 +170,10 @@ export default function AddEntryScreen() {
         return;
       }
 
+      void updateSettings({
+        defaultCategory: category,
+        defaultSizeL: sizeL,
+      });
       setSaved(true);
       setPendingEntries([]);
       setCount("1");
@@ -181,8 +188,8 @@ export default function AddEntryScreen() {
     setNoteModalVisible(true);
   };
 
-  const applyNote = () => {
-    setNote(noteDraft);
+  const closeNoteModal = () => {
+    setNote(noteDraft.trim());
     setNoteModalVisible(false);
   };
 
@@ -199,6 +206,7 @@ export default function AddEntryScreen() {
     };
     setPendingEntries((prev) => [...prev, entry]);
 
+    void updateSettings({ defaultCategory: category, defaultSizeL: sizeL });
     const fallbackCategory = settings.defaultCategory ?? "beer";
     const fallbackSize = settings.defaultSizeL ?? SIZE_OPTIONS[fallbackCategory][0];
     setCategory(fallbackCategory);
@@ -248,6 +256,8 @@ export default function AddEntryScreen() {
           <Text style={styles.title}>Add Entry</Text>
           {saved ? <Text style={styles.saved}>Saved</Text> : null}
         </View>
+        {settingsLoading ? <Text style={styles.loadingNotice}>Loading your preferences...</Text> : null}
+        {error ? <ErrorBanner message={error} /> : null}
 
         <View style={[styles.card, styles.calendarCard]}>
           <View style={styles.calendarHeader}>
@@ -423,7 +433,11 @@ export default function AddEntryScreen() {
             {note ? <Text style={styles.notePreview}>{note}</Text> : null}
           </View>
 
-          <Pressable style={styles.nextEntryButton} onPress={handleNextEntry}>
+          <Pressable
+            style={[styles.nextEntryButton, busy && styles.nextEntryButtonDisabled]}
+            onPress={handleNextEntry}
+            disabled={busy}
+          >
             <Text style={styles.nextEntryText}>Next Entry</Text>
           </Pressable>
         </View>
@@ -436,11 +450,7 @@ export default function AddEntryScreen() {
           />
         ) : null}
 
-        <Pressable
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={saving}
-        >
+        <Pressable style={[styles.saveButton, busy && styles.saveButtonDisabled]} onPress={handleSave} disabled={busy}>
           <Text style={styles.saveText}>
             {saving ? "Saving..." : totalEntries > 1 ? `Save ${totalEntries} entries` : "Save entry"}
           </Text>
@@ -483,8 +493,7 @@ export default function AddEntryScreen() {
         visible={noteModalVisible}
         value={noteDraft}
         onChange={setNoteDraft}
-        onClose={() => setNoteModalVisible(false)}
-        onSave={applyNote}
+        onClose={closeNoteModal}
       />
     </SafeAreaView>
   );
@@ -509,6 +518,10 @@ const createStyles = (colors: Theme["colors"]) =>
     fontSize: 22,
     fontWeight: "700",
     color: colors.text,
+  },
+  loadingNotice: {
+    color: colors.textMuted,
+    marginBottom: 8,
   },
   saved: {
     color: colors.accent,
@@ -616,6 +629,9 @@ const createStyles = (colors: Theme["colors"]) =>
     paddingVertical: 6,
     borderRadius: 8,
     backgroundColor: colors.accent,
+  },
+  nextEntryButtonDisabled: {
+    opacity: 0.6,
   },
   nextEntryText: {
     color: colors.accentText,
