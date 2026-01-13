@@ -17,9 +17,10 @@ type NoteModalProps = {
   value: string;
   onChange: (value: string) => void;
   onClose: () => void;
+  onClear?: () => void;
 };
 
-export default function NoteModal({ visible, value, onChange, onClose }: NoteModalProps) {
+export default function NoteModal({ visible, value, onChange, onClose, onClear }: NoteModalProps) {
   const { colors, mode } = useTheme();
   const overlayColor = mode === "dark" ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.35)";
   const styles = useMemo(() => createStyles(colors, overlayColor), [colors, overlayColor]);
@@ -43,6 +44,11 @@ export default function NoteModal({ visible, value, onChange, onClose }: NoteMod
               autoFocus
             />
             <View style={styles.modalActions}>
+              {onClear ? (
+                <Pressable style={styles.modalButtonSecondary} onPress={onClear}>
+                  <Text style={styles.modalButtonSecondaryText}>Clear note</Text>
+                </Pressable>
+              ) : null}
               <Pressable style={styles.modalButtonPrimary} onPress={onClose}>
                 <Text style={styles.modalButtonPrimaryText}>Done</Text>
               </Pressable>
@@ -89,6 +95,18 @@ const createStyles = (colors: Theme["colors"], overlayColor: string) =>
       flexDirection: "row",
       justifyContent: "flex-end",
       gap: 12,
+    },
+    modalButtonSecondary: {
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    modalButtonSecondaryText: {
+      color: colors.textMuted,
+      fontWeight: "600",
     },
     modalButtonPrimary: {
       paddingHorizontal: 16,

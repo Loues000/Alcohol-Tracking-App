@@ -3,7 +3,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "rea
 import { FontAwesome } from "@expo/vector-icons";
 import { DRINK_CATEGORIES } from "../lib/drinks";
 import { CATEGORY_COLORS } from "../lib/dashboard-theme";
-import { getEntryEthanolGrams, toStandardDrinks } from "../lib/alcohol";
+import { getEntryEthanolGrams } from "../lib/alcohol";
 import { formatVolume } from "../lib/dashboard-utils";
 import { formatShortDate, startOfDay, toDateKey, toLocalDayKeyFromISO } from "../lib/dates";
 import { useEntries } from "../lib/entries-context";
@@ -348,22 +348,6 @@ export default function DiagramsScreen() {
   const avgLitersPerDay = totalLiters === 0 ? 0 : totalLiters / daysInYear;
   const avgLitersPerDrinkingDay = yearDrinkingDays === 0 ? 0 : totalLiters / yearDrinkingDays;
 
-  const topMonth = useMemo(() => {
-    return monthStats.reduce<{ month: number; liters: number }>(
-      (best, current) =>
-        current.liters > best.liters ? { month: current.month, liters: current.liters } : best,
-      { month: 0, liters: 0 }
-    );
-  }, [monthStats]);
-
-  const topWeekday = useMemo(() => {
-    return weekdayStats.reduce<{ weekday: number; liters: number }>(
-      (best, current) =>
-        current.liters > best.liters ? { weekday: current.weekday, liters: current.liters } : best,
-      { weekday: 0, liters: 0 }
-    );
-  }, [weekdayStats]);
-
   const sortedMonthStats = useMemo(() => {
     const dir = monthSort.dir === "asc" ? 1 : -1;
     return [...monthStats].sort((a, b) => {
@@ -428,7 +412,6 @@ export default function DiagramsScreen() {
   );
 
   const maxPureAlcoholMonth = Math.max(1, ...pureAlcoholGramsByMonth);
-  const standardDrinks = toStandardDrinks(pureAlcoholTotalGrams);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -464,11 +447,7 @@ export default function DiagramsScreen() {
             right={
               entriesForYear.length === 0 ? (
                 <Text style={styles.summarySubtitle}>No entries for this year.</Text>
-              ) : (
-                <Text style={styles.summarySubtitle}>
-                  Top month: {MONTH_LABELS[topMonth.month]} - Top weekday: {WEEKDAY_LABELS_SHORT[topWeekday.weekday]}
-                </Text>
-              )
+              ) : null
             }
           >
             <View style={styles.summaryGrid}>
@@ -693,7 +672,7 @@ export default function DiagramsScreen() {
             wide
             right={
               <Text style={styles.summarySubtitle}>
-                {formatGrams(pureAlcoholTotalGrams)} - {standardDrinks.toFixed(1)} standard drinks (12 g)
+                {formatGrams(pureAlcoholTotalGrams)}
               </Text>
             }
           >

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import DrinkIcon from "./DrinkIcon";
 import { DRINK_CATEGORIES, formatSize } from "../lib/drinks";
 import { DrinkCategory, VolumeUnit } from "../lib/types";
@@ -13,6 +14,7 @@ type PendingEntry = {
   count: number;
   custom_name?: string | null;
   abv_percent?: number | null;
+  note?: string | null;
 };
 
 type PendingEntriesCardProps = {
@@ -27,7 +29,6 @@ const formatPendingLabel = (entry: PendingEntry, unit: VolumeUnit) => {
   const details =
     [
       entry.category === "other" ? entry.custom_name ?? null : null,
-      entry.abv_percent !== null && entry.abv_percent !== undefined ? `${entry.abv_percent}% ABV` : null,
     ]
       .filter(Boolean)
       .join(" - ") || null;
@@ -48,9 +49,21 @@ export default function PendingEntriesCard({ entries, unit, onRemove }: PendingE
               <DrinkIcon category={entry.category} size={14} color={colors.text} />
               <Text style={styles.text}>{formatPendingLabel(entry, unit)}</Text>
             </View>
-            <Pressable onPress={() => onRemove(entry.id)}>
-              <Text style={styles.remove}>Remove</Text>
-            </Pressable>
+            <View style={styles.actions}>
+              {entry.note ? (
+                <Pressable
+                  style={styles.noteIcon}
+                  onPress={() => Alert.alert("Note", entry.note ?? "")}
+                  accessibilityRole="button"
+                  accessibilityLabel="Show note for this entry"
+                >
+                  <MaterialIcons name="edit-note" size={18} color={colors.text} />
+                </Pressable>
+              ) : null}
+              <Pressable onPress={() => onRemove(entry.id)}>
+                <Text style={styles.remove}>Remove</Text>
+              </Pressable>
+            </View>
           </View>
         ))}
       </View>
@@ -96,6 +109,18 @@ const createStyles = (colors: Theme["colors"]) =>
       fontSize: 12,
       color: colors.text,
       flexShrink: 1,
+    },
+    actions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    noteIcon: {
+      padding: 6,
+      borderRadius: 10,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     remove: {
       fontSize: 12,

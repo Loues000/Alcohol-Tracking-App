@@ -48,6 +48,7 @@ type PendingEntry = {
   count: number;
   custom_name?: string | null;
   abv_percent?: number | null;
+  note?: string | null;
 };
 
 export default function AddEntryScreen() {
@@ -151,6 +152,7 @@ export default function AddEntryScreen() {
           size_l: sizeL,
           count: parsedCount,
           ...entryFields,
+          note: noteValue,
         },
       ];
       const inputs = entriesToSave.flatMap((entry) =>
@@ -158,7 +160,7 @@ export default function AddEntryScreen() {
           consumed_at: consumedAt.toISOString(),
           category: entry.category,
           size_l: entry.size_l,
-          note: noteValue,
+          note: entry.note ?? null,
           custom_name: entry.category === "other" ? entry.custom_name ?? null : null,
           abv_percent: entry.abv_percent ?? null,
         }))
@@ -177,6 +179,8 @@ export default function AddEntryScreen() {
       setSaved(true);
       setPendingEntries([]);
       setCount("1");
+      setNote("");
+      setNoteDraft("");
       setTimeout(() => setSaved(false), 2000);
     } finally {
       setSaving(false);
@@ -193,9 +197,18 @@ export default function AddEntryScreen() {
     setNoteModalVisible(false);
   };
 
+  const clearNote = () => {
+    setNote("");
+    setNoteDraft("");
+    setNoteModalVisible(false);
+  };
+
   const handleNextEntry = () => {
     const entryFields = validateEntryFields();
     if (!entryFields) return;
+
+    const trimmedNote = note.trim();
+    const noteValue = trimmedNote.length > 0 ? trimmedNote : null;
 
     const entry: PendingEntry = {
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -203,6 +216,7 @@ export default function AddEntryScreen() {
       size_l: sizeL,
       count: parsedCount,
       ...entryFields,
+      note: noteValue,
     };
     setPendingEntries((prev) => [...prev, entry]);
 
@@ -423,14 +437,24 @@ export default function AddEntryScreen() {
                   </View>
                 </View>
               </View>
-              <View style={[styles.rowItemCompact, styles.noteColumn]}>
-                <Text style={styles.label}>Note</Text>
-                <Pressable style={styles.noteButton} onPress={openNoteModal}>
-                  <MaterialIcons name="edit-note" size={20} color={colors.textMuted} />
-                </Pressable>
-              </View>
             </View>
-            {note ? <Text style={styles.notePreview}>{note}</Text> : null}
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Note</Text>
+            <View style={styles.noteRow}>
+              <Pressable style={styles.noteField} onPress={openNoteModal}>
+                <MaterialIcons name="edit-note" size={20} color={colors.textMuted} />
+                <Text style={note ? styles.noteText : styles.notePlaceholder} numberOfLines={2}>
+                  {note || "Add a short note"}
+                </Text>
+              </Pressable>
+              {note ? (
+                <Pressable style={styles.clearNoteButton} onPress={clearNote}>
+                  <Text style={styles.clearNoteText}>Clear</Text>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
 
           <Pressable
@@ -446,7 +470,7 @@ export default function AddEntryScreen() {
           <PendingEntriesCard
             entries={pendingEntries}
             unit={settings.unit}
-            onRemove={handleRemovePending}
+        onRemove={handleRemovePending}
           />
         ) : null}
 
@@ -494,6 +518,7 @@ export default function AddEntryScreen() {
         value={noteDraft}
         onChange={setNoteDraft}
         onClose={closeNoteModal}
+        onClear={clearNote}
       />
     </SafeAreaView>
   );
@@ -683,11 +708,6 @@ const createStyles = (colors: Theme["colors"]) =>
   dateValueText: {
     marginTop: 6,
   },
-  noteColumn: {
-    alignItems: "flex-end",
-    justifyContent: "flex-start",
-    marginLeft: "auto",
-  },
   dropdown: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -763,17 +783,6 @@ const createStyles = (colors: Theme["colors"]) =>
     color: colors.textMuted,
     fontWeight: "600",
   },
-  noteButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  notePreview: {
-    color: colors.textMuted,
-  },
   saveButton: {
     paddingVertical: 14,
     borderRadius: 12,
@@ -785,6 +794,45 @@ const createStyles = (colors: Theme["colors"]) =>
   },
   saveText: {
     color: colors.accentText,
+    fontWeight: "600",
+  },
+  noteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  noteField: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: colors.surfaceMuted,
+  },
+  noteText: {
+    color: colors.text,
+    flex: 1,
+  },
+  notePlaceholder: {
+    color: colors.textMuted,
+    flex: 1,
+  },
+  clearNoteButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  clearNoteText: {
+    color: colors.textMuted,
     fontWeight: "600",
   },
 });
