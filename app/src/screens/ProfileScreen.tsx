@@ -4,42 +4,53 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
-  Share,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
-import { DRINK_CATEGORIES, SIZE_OPTIONS, formatSize } from "../lib/drinks";
-import { useLocalSettings } from "../lib/local-settings";
+import { CATEGORY_LABELS } from "../lib/drinks";
+import { toLocalDayKeyFromISO } from "../lib/dates";
+import { formatDrinkCount } from "../lib/dashboard-utils";
 import { useProfile } from "../lib/profile-context";
 import { useEntries } from "../lib/entries-context";
 import { supabase } from "../lib/supabase";
-import { DrinkCategory, VolumeUnit } from "../lib/types";
-import { ACCENT_COLORS, ThemeAccent, ThemeMode } from "../lib/theme";
 import type { Theme } from "../lib/theme";
 import { useTheme } from "../lib/theme-context";
+import type { RootStackParamList } from "../navigation/RootNavigator";
 
-const THEME_ACCENTS: Array<{ key: ThemeAccent; label: string; color: string }> = [
-  { key: "beer", label: "Beer", color: ACCENT_COLORS.beer },
-  { key: "wine", label: "Wine", color: ACCENT_COLORS.wine },
-  { key: "vodka", label: "Vodka", color: ACCENT_COLORS.vodka },
-  { key: "caipirinha", label: "Caipirinha", color: ACCENT_COLORS.caipirinha },
-];
+const MS_PER_DAY = 86_400_000;
+
+const toDayNumber = (date: Date) =>
+  Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / MS_PER_DAY);
+
+const parseDayKey = (dayKey: string) => {
+  const [year, month, day] = dayKey.split("-").map((part) => Number(part));
+  if (!year || !month || !day) return null;
+  const parsed = new Date(year, month - 1, day);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+};
+
+const formatDayKey = (dayKey: string) => {
+  const parsed = parseDayKey(dayKey);
+  if (!parsed) return dayKey;
+  return parsed.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+};
 
 export default function ProfileScreen() {
   const { profile, updateProfile, error } = useProfile();
   const { entries } = useEntries();
-  const { settings, updateSettings } = useLocalSettings();
-  const { colors, mode } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [email, setEmail] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [editingName, setEditingName] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -64,71 +75,86 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleThemeToggle = async (isDark: boolean) => {
-    await updateSettings({ themeMode: isDark ? "dark" : "light" });
-  };
+  const stats = useMemo(() => {
+    const totalDrinks = entries.length;
+    if (entries.length === 0) {
+      return {
+        totalDrinks,
+        daysTracked: 0,
+        drinkingDays: 0,
+        dryDays: 0,
+        heaviestDay: null as null | { dayKey: string; count: number },
+        favoriteDrink: null as null | { name: string; count: number },
+      };
+    }
 
-  const handleAccentChange = async (accent: ThemeAccent) => {
-    await updateSettings({ themeAccent: accent });
-  };
+    const uniqueDays = new Set<string>();
+    const countsByDay: Record<string, number> = {};
+    const favoriteCounts: Record<string, { count: number; lastConsumedAt: number }> = {};
+    let earliestDayNumber = Infinity;
 
-  const handleUnitChange = async (unit: VolumeUnit) => {
-    await updateSettings({ unit });
-  };
+    for (const entry of entries) {
+      const consumedAt = new Date(entry.consumed_at);
+      const consumedAtTime = consumedAt.getTime();
+      if (Number.isNaN(consumedAtTime)) continue;
 
-  const logout = async () => {
-    const { error: signOutError } = await supabase.auth.signOut();
-    if (signOutError) Alert.alert("Sign out failed", signOutError.message);
-  };
+      const dayKey = toLocalDayKeyFromISO(entry.consumed_at);
+      uniqueDays.add(dayKey);
+      countsByDay[dayKey] = (countsByDay[dayKey] ?? 0) + 1;
+      earliestDayNumber = Math.min(earliestDayNumber, toDayNumber(consumedAt));
 
-  const confirmDeleteAccount = () => {
-    Alert.alert(
-      "Delete account",
-      "This deletes your account and all entries. This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: handleDeleteAccount,
-        },
-      ]
-    );
-  };
+      const favoriteKey =
+        entry.category === "other" && (entry.custom_name ?? "").trim().length > 0
+          ? (entry.custom_name ?? "").trim()
+          : CATEGORY_LABELS[entry.category];
 
-  const handleDeleteAccount = async () => {
-    setDeleting(true);
-    const { error: rpcError } = await supabase.rpc("delete_account");
-
-    if (rpcError) {
-      const { data } = await supabase.auth.getUser();
-      const userId = data.user?.id;
-      if (userId) {
-        await supabase.from("entries").delete().eq("user_id", userId);
-        await supabase.from("profiles").delete().eq("id", userId);
+      const existing = favoriteCounts[favoriteKey];
+      if (existing) {
+        existing.count += 1;
+        existing.lastConsumedAt = Math.max(existing.lastConsumedAt, consumedAtTime);
+      } else {
+        favoriteCounts[favoriteKey] = { count: 1, lastConsumedAt: consumedAtTime };
       }
     }
 
-    await supabase.auth.signOut();
-    setDeleting(false);
+    const todayDayNumber = toDayNumber(new Date());
+    const daysTracked =
+      earliestDayNumber === Infinity ? 0 : Math.max(0, todayDayNumber - earliestDayNumber + 1);
+    const drinkingDays = uniqueDays.size;
+    const dryDays = Math.max(0, daysTracked - drinkingDays);
 
-    if (rpcError) {
-      Alert.alert(
-        "Data removed",
-        "Your entries were deleted, but the auth account could not be removed."
-      );
-    }
-  };
+    let heaviestDay: { dayKey: string; count: number } | null = null;
+    for (const [dayKey, count] of Object.entries(countsByDay)) {
+      if (!heaviestDay) {
+        heaviestDay = { dayKey, count };
+        continue;
+      }
 
-  const handleExport = async () => {
-    try {
-      const payload = JSON.stringify(entries, null, 2);
-      await Share.share({ message: payload });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Please try again.";
-      Alert.alert("Export failed", message);
+      const currentDayNumber = toDayNumber(parseDayKey(dayKey) ?? new Date(0));
+      const bestDayNumber = toDayNumber(parseDayKey(heaviestDay.dayKey) ?? new Date(0));
+      const isBetter = count > heaviestDay.count || (count === heaviestDay.count && currentDayNumber > bestDayNumber);
+
+      if (isBetter) {
+        heaviestDay = { dayKey, count };
+      }
     }
-  };
+
+    let favoriteName: string | null = null;
+    let favoriteCount = 0;
+    let favoriteLastConsumedAt = -Infinity;
+
+    for (const [name, info] of Object.entries(favoriteCounts)) {
+      if (info.count > favoriteCount || (info.count === favoriteCount && info.lastConsumedAt > favoriteLastConsumedAt)) {
+        favoriteName = name;
+        favoriteCount = info.count;
+        favoriteLastConsumedAt = info.lastConsumedAt;
+      }
+    }
+
+    const favoriteDrink = favoriteName ? { name: favoriteName, count: favoriteCount } : null;
+
+    return { totalDrinks, daysTracked, drinkingDays, dryDays, heaviestDay, favoriteDrink };
+  }, [entries]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -176,128 +202,82 @@ export default function ProfileScreen() {
             )}
             <Text style={styles.email}>{email ?? "Loading..."}</Text>
           </View>
-        </View>
-
-        {/* Settings List */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Appearance</Text>
-
-          {/* Dark Mode Toggle */}
-          <View style={styles.row}>
-            <View style={styles.rowLeft}>
-              <Feather name="moon" size={18} color={colors.text} />
-              <Text style={styles.rowLabel}>Dark mode</Text>
-            </View>
-            <Switch
-              value={mode === "dark"}
-              onValueChange={handleThemeToggle}
-              trackColor={{ false: colors.border, true: colors.accent }}
-              thumbColor={colors.surface}
-            />
-          </View>
-
-          <View style={styles.separator} />
-
-          {/* Accent Color */}
-          <View style={styles.row}>
-            <View style={styles.rowLeft}>
-              <Feather name="droplet" size={18} color={colors.text} />
-              <Text style={styles.rowLabel}>Accent color</Text>
-            </View>
-            <View style={styles.colorDots}>
-              {THEME_ACCENTS.map((accent) => (
-                <Pressable
-                  key={accent.key}
-                  onPress={() => handleAccentChange(accent.key)}
-                  style={[
-                    styles.colorDot,
-                    { backgroundColor: accent.color },
-                    settings.themeAccent === accent.key && styles.colorDotSelected,
-                    settings.themeAccent === accent.key && { borderColor: colors.text },
-                  ]}
-                />
-              ))}
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Preferences</Text>
-
-          {/* Units */}
-          <View style={styles.row}>
-            <View style={styles.rowLeft}>
-              <Feather name="maximize-2" size={18} color={colors.text} />
-              <Text style={styles.rowLabel}>Units</Text>
-            </View>
-            <View style={styles.unitChips}>
-              {(["l", "ml", "cl", "oz"] as VolumeUnit[]).map((unit) => (
-                <Pressable
-                  key={unit}
-                  onPress={() => handleUnitChange(unit)}
-                  style={[
-                    styles.unitChip,
-                    settings.unit === unit && styles.unitChipSelected,
-                    settings.unit === unit && { backgroundColor: colors.accent },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.unitChipText,
-                      settings.unit === unit && styles.unitChipTextSelected,
-                      settings.unit === unit && { color: colors.accentText },
-                    ]}
-                  >
-                    {unit}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Data</Text>
-
-          <Pressable style={styles.actionRow} onPress={handleExport}>
-            <View style={styles.rowLeft}>
-              <Feather name="download" size={18} color={colors.text} />
-              <Text style={styles.rowLabel}>Export data (JSON)</Text>
-            </View>
-            <Feather name="chevron-right" size={18} color={colors.textMuted} />
-          </Pressable>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-
-          <Pressable style={styles.actionRow} onPress={logout}>
-            <View style={styles.rowLeft}>
-              <Feather name="log-out" size={18} color={colors.text} />
-              <Text style={styles.rowLabel}>Sign out</Text>
-            </View>
-            <Feather name="chevron-right" size={18} color={colors.textMuted} />
-          </Pressable>
-
-          <View style={styles.separator} />
-
           <Pressable
-            style={styles.actionRow}
-            onPress={confirmDeleteAccount}
-            disabled={deleting}
+            style={styles.headerButton}
+            onPress={() => navigation.navigate("ProfileSettings")}
+            accessibilityRole="button"
+            accessibilityLabel="Open settings"
           >
-            <View style={styles.rowLeft}>
-              <Feather name="trash-2" size={18} color="#8f3a3a" />
-              <Text style={[styles.rowLabel, styles.deleteLabel]}>
-                {deleting ? "Deleting..." : "Delete account"}
-              </Text>
-            </View>
+            <Feather name="settings" size={18} color={colors.text} />
           </Pressable>
         </View>
 
-        <Text style={styles.footnote}>
-          Your data is stored securely. Export creates a JSON backup of all entries.
-        </Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>All-time stats</Text>
+
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Feather name="hash" size={18} color={colors.text} />
+              <Text style={styles.rowLabel}>Total drinks</Text>
+            </View>
+            <Text style={styles.statValueText}>{stats.totalDrinks}</Text>
+          </View>
+
+          <View style={styles.separator} />
+
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Feather name="calendar" size={18} color={colors.text} />
+              <Text style={styles.rowLabel}>Days tracked</Text>
+            </View>
+            <View style={styles.statValueStack}>
+              <Text style={styles.statValueText}>{stats.daysTracked}</Text>
+              {stats.daysTracked > 0 && (
+                <Text style={styles.statSubValueText}>
+                  {stats.drinkingDays} drinking • {stats.dryDays} dry
+                </Text>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.separator} />
+
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Feather name="trending-up" size={18} color={colors.text} />
+              <Text style={styles.rowLabel}>Heaviest day</Text>
+            </View>
+            <View style={styles.statValueStack}>
+              <Text style={styles.statValueText}>
+                {stats.heaviestDay ? formatDayKey(stats.heaviestDay.dayKey) : "—"}
+              </Text>
+              {stats.heaviestDay && (
+                <Text style={styles.statSubValueText}>
+                  {formatDrinkCount(stats.heaviestDay.count)}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.separator} />
+
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Feather name="star" size={18} color={colors.text} />
+              <Text style={styles.rowLabel}>Favorite drink</Text>
+            </View>
+            <View style={styles.statValueStack}>
+              <Text style={styles.statValueText}>
+                {stats.favoriteDrink ? stats.favoriteDrink.name : "—"}
+              </Text>
+              {stats.favoriteDrink && (
+                <Text style={styles.statSubValueText}>
+                  {formatDrinkCount(stats.favoriteDrink.count)}
+                </Text>
+              )}
+            </View>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -363,6 +343,16 @@ const createStyles = (colors: Theme["colors"]) =>
     nameButton: {
       padding: 8,
     },
+    headerButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
     email: {
       fontSize: 14,
       color: colors.textMuted,
@@ -401,6 +391,21 @@ const createStyles = (colors: Theme["colors"]) =>
     },
     deleteLabel: {
       color: "#8f3a3a",
+    },
+    statValueStack: {
+      alignItems: "flex-end",
+      gap: 2,
+      paddingLeft: 12,
+    },
+    statValueText: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    statSubValueText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: colors.textMuted,
     },
     separator: {
       height: 1,

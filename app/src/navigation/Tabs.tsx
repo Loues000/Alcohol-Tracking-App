@@ -18,7 +18,7 @@ export default function Tabs() {
               return <FontAwesome6 name="house" color={color} size={size} />;
             case "Add Entry":
               return <FontAwesome5 name="plus" color={color} size={size} />;
-            case "Profile":
+            case "Account":
               return <Feather name="user" color={color} size={size} />;
             default:
               return null;
@@ -35,7 +35,7 @@ export default function Tabs() {
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Add Entry" component={AddEntryScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Account" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }

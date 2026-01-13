@@ -9,7 +9,7 @@ import { ProfileProvider } from "./src/lib/profile-context";
 import { supabase } from "./src/lib/supabase";
 import { ThemeProvider } from "./src/lib/theme-context";
 import { AppErrorBoundary } from "./src/components/AppErrorBoundary";
-import Tabs from "./src/navigation/Tabs";
+import RootNavigator from "./src/navigation/RootNavigator";
 import LoginScreen from "./src/screens/LoginScreen";
 
 export default function App() {
@@ -96,7 +96,7 @@ export default function App() {
               {session ? (
                 <ProfileProvider user={session.user}>
                   <EntriesProvider userId={session.user.id}>
-                    <Tabs />
+                    <RootNavigator />
                   </EntriesProvider>
                 </ProfileProvider>
               ) : (
