@@ -39,10 +39,29 @@ export const DEFAULT_ABV: Record<DrinkCategory, number | null> = DRINK_CATEGORIE
   {} as Record<DrinkCategory, number | null>
 );
 
-const OUNCES_PER_LITER = 33.814;
+export const OUNCES_PER_LITER = 33.814;
 
 const formatNumber = (value: number, decimals: number) =>
   value.toFixed(decimals).replace(/\.?0+$/, "");
+
+const roundToStep = (value: number, step: number) => Math.round(value / step) * step;
+const toFixedNumber = (value: number, decimals = 4) => Number(value.toFixed(decimals));
+
+const normalizeOunceSizes = (sizesL: number[]) => {
+  const roundedOz = sizesL.map((size) => roundToStep(size * OUNCES_PER_LITER, 0.5));
+  const uniqueOz = Array.from(new Set(roundedOz.map((value) => value.toFixed(1))))
+    .map((value) => Number(value))
+    .sort((a, b) => a - b);
+  return uniqueOz.map((oz) => toFixedNumber(oz / OUNCES_PER_LITER));
+};
+
+export const getSizeOptions = (category: DrinkCategory, unit: VolumeUnit) => {
+  if (unit !== "oz") return SIZE_OPTIONS[category];
+  if (category === "beer") {
+    return [12, 16, 32].map((oz) => toFixedNumber(oz / OUNCES_PER_LITER));
+  }
+  return normalizeOunceSizes(SIZE_OPTIONS[category]);
+};
 
 export const formatSize = (sizeL: number, unit: VolumeUnit = "l") => {
   if (unit === "ml") {

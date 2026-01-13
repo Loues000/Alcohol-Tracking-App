@@ -3,13 +3,13 @@ import {
   Alert,
   Animated,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, MaterialIcons } from "@expo/vector-icons";
 import DrinkIcon from "../components/DrinkIcon";
 import DayWheel from "../components/DayWheel";
@@ -19,7 +19,7 @@ import NoteModal from "../components/NoteModal";
 import PendingEntriesCard from "../components/PendingEntriesCard";
 import SizePickerModal from "../components/SizePickerModal";
 import TimePickerModal from "../components/TimePickerModal";
-import { DEFAULT_ABV, DRINK_CATEGORIES, SIZE_OPTIONS, formatSize } from "../lib/drinks";
+import { DEFAULT_ABV, DRINK_CATEGORIES, formatSize, getSizeOptions } from "../lib/drinks";
 import { addDays, formatDateInput, pad2, startOfDay } from "../lib/dates";
 import { useEntries } from "../lib/entries-context";
 import { useLocalSettings } from "../lib/local-settings";
@@ -61,7 +61,7 @@ export default function AddEntryScreen() {
   const [selectedDate, setSelectedDate] = useState(startOfDay(now));
   const [displayMonthDate, setDisplayMonthDate] = useState(startOfDay(now));
   const [category, setCategory] = useState<DrinkCategory>("beer");
-  const [sizeL, setSizeL] = useState(SIZE_OPTIONS.beer[0]);
+  const [sizeL, setSizeL] = useState(getSizeOptions("beer", settings.unit)[0]);
   const [count, setCount] = useState("1");
   const [hour, setHour] = useState(now.getHours());
   const [minute, setMinute] = useState(Math.floor(now.getMinutes() / 5) * 5);
@@ -84,11 +84,15 @@ export default function AddEntryScreen() {
   );
   const busy = saving || settingsLoading;
 
+  const sizeOptions = useMemo(
+    () => getSizeOptions(category, settings.unit),
+    [category, settings.unit]
+  );
+
   useEffect(() => {
-    if (!SIZE_OPTIONS[category].includes(sizeL)) {
-      setSizeL(SIZE_OPTIONS[category][0]);
-    }
-  }, [category, sizeL]);
+    if (sizeOptions.length === 0) return;
+    setSizeL((prev) => (sizeOptions.includes(prev) ? prev : sizeOptions[0]));
+  }, [sizeOptions]);
 
   useEffect(() => {
     if (category !== "other") {
@@ -223,7 +227,8 @@ export default function AddEntryScreen() {
 
     void updateSettings({ defaultCategory: category, defaultSizeL: sizeL });
     const fallbackCategory = settings.defaultCategory ?? "beer";
-    const fallbackSize = settings.defaultSizeL ?? SIZE_OPTIONS[fallbackCategory][0];
+    const fallbackSize =
+      settings.defaultSizeL ?? getSizeOptions(fallbackCategory, settings.unit)[0];
     setCategory(fallbackCategory);
     setSizeL(fallbackSize);
     setCount("1");
@@ -325,8 +330,7 @@ export default function AddEntryScreen() {
           </View>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Details</Text>
+        <View style={[styles.card, styles.detailsCard]}>
 
           <View style={styles.section}>
             <Text style={styles.label}>Drink</Text>
@@ -362,7 +366,7 @@ export default function AddEntryScreen() {
           <View style={styles.section}>
             <Text style={styles.label}>Size</Text>
             <View style={styles.sizePillsRow}>
-              {SIZE_OPTIONS[category].map((size) => {
+              {sizeOptions.map((size) => {
                 const selected = size === sizeL;
                 return (
                   <Pressable
@@ -521,8 +525,9 @@ export default function AddEntryScreen() {
 
       <SizePickerModal
         visible={sizeModalVisible}
-        sizes={SIZE_OPTIONS[category]}
+        sizes={sizeOptions}
         unit={settings.unit}
+        currentSize={sizeL}
         onClose={() => setSizeModalVisible(false)}
         onSelect={(size) => {
           setSizeL(size);
@@ -612,10 +617,9 @@ const createStyles = (colors: Theme["colors"]) =>
     padding: 12,
     gap: 8,
   },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.text,
+  detailsCard: {
+    padding: 12,
+    gap: 10,
   },
   calendarHeader: {
     flexDirection: "row",
@@ -662,7 +666,7 @@ const createStyles = (colors: Theme["colors"]) =>
     fontWeight: "600",
   },
   section: {
-    gap: 8,
+    gap: 6,
   },
   label: {
     fontSize: 13,
@@ -676,7 +680,7 @@ const createStyles = (colors: Theme["colors"]) =>
   },
   chip: {
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.border,
@@ -702,8 +706,8 @@ const createStyles = (colors: Theme["colors"]) =>
     alignItems: "center",
   },
   sizePill: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 12,
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
@@ -714,7 +718,7 @@ const createStyles = (colors: Theme["colors"]) =>
     borderColor: colors.accent,
   },
   sizePillText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: colors.text,
   },
@@ -722,8 +726,8 @@ const createStyles = (colors: Theme["colors"]) =>
     color: colors.accentText,
   },
   sizePillMore: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: 12,
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
@@ -734,11 +738,11 @@ const createStyles = (colors: Theme["colors"]) =>
   countRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
   },
   countButton: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: 12,
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
@@ -748,9 +752,9 @@ const createStyles = (colors: Theme["colors"]) =>
   },
   nextEntryButton: {
     alignSelf: "flex-start",
-    marginTop: 6,
+    marginTop: 4,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 10,
     backgroundColor: colors.accent,
     flexDirection: "row",
@@ -836,7 +840,7 @@ const createStyles = (colors: Theme["colors"]) =>
     borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     backgroundColor: colors.surface,
     fontWeight: "700",
     fontSize: 16,
@@ -848,7 +852,7 @@ const createStyles = (colors: Theme["colors"]) =>
     borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     backgroundColor: colors.surface,
     fontWeight: "600",
     color: colors.text,
@@ -866,13 +870,13 @@ const createStyles = (colors: Theme["colors"]) =>
   },
   timeButton: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 10,
     backgroundColor: colors.accent,
   },
   timeButtonSecondary: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 10,
     backgroundColor: colors.surfaceMuted,
   },
@@ -912,12 +916,12 @@ const createStyles = (colors: Theme["colors"]) =>
     alignItems: "center",
     gap: 8,
     flex: 1,
-    minHeight: 48,
+    minHeight: 44,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     backgroundColor: colors.surfaceMuted,
   },
   noteText: {
@@ -930,7 +934,7 @@ const createStyles = (colors: Theme["colors"]) =>
   },
   clearNoteButton: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 10,
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { DEFAULT_ABV, DRINK_CATEGORIES, SIZE_OPTIONS, formatSize } from "../lib/drinks";
+import { DEFAULT_ABV, DRINK_CATEGORIES, formatSize, getSizeOptions } from "../lib/drinks";
 import { addDays, addMinutes, formatDateInput, formatTimeInput, parseDateTimeInput } from "../lib/dates";
 import { DrinkCategory, VolumeUnit } from "../lib/types";
 import { useTheme } from "../lib/theme-context";
@@ -38,7 +38,7 @@ export default function EntryForm({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const resolvedInitial = useMemo(() => {
     const category = initialValues?.category ?? fallbackCategory;
-    const size = initialValues?.size_l ?? SIZE_OPTIONS[category][0];
+    const size = initialValues?.size_l ?? getSizeOptions(category, unit)[0];
     const datetime = initialValues?.datetime ?? new Date();
     const note = initialValues?.note ?? "";
     const customName = initialValues?.custom_name ?? "";
@@ -46,7 +46,7 @@ export default function EntryForm({
     const abvInput =
       typeof abvValue === "number" && Number.isFinite(abvValue) ? `${abvValue}` : "";
     return { category, size, datetime, note, customName, abvInput };
-  }, [initialValues]);
+  }, [initialValues, unit]);
 
   const [category, setCategory] = useState<DrinkCategory>(resolvedInitial.category);
   const [sizeL, setSizeL] = useState(resolvedInitial.size);
@@ -56,6 +56,7 @@ export default function EntryForm({
   const [abvInput, setAbvInput] = useState(resolvedInitial.abvInput);
   const [dateInput, setDateInput] = useState(formatDateInput(resolvedInitial.datetime));
   const [timeInput, setTimeInput] = useState(formatTimeInput(resolvedInitial.datetime));
+  const sizeOptionsReady = useRef(false);
 
   useEffect(() => {
     setCategory(resolvedInitial.category);
@@ -68,12 +69,16 @@ export default function EntryForm({
     setTimeInput(formatTimeInput(resolvedInitial.datetime));
   }, [resolvedInitial]);
 
+  const sizeOptions = useMemo(() => getSizeOptions(category, unit), [category, unit]);
+
   useEffect(() => {
-    const sizes = SIZE_OPTIONS[category];
-    if (!sizes.includes(sizeL)) {
-      setSizeL(sizes[0]);
+    if (sizeOptions.length === 0) return;
+    if (!sizeOptionsReady.current) {
+      sizeOptionsReady.current = true;
+      return;
     }
-  }, [category, sizeL]);
+    setSizeL((prev) => (sizeOptions.includes(prev) ? prev : sizeOptions[0]));
+  }, [sizeOptions]);
 
   useEffect(() => {
     if (category !== "other") {
@@ -149,7 +154,7 @@ export default function EntryForm({
       <View style={styles.section}>
         <Text style={styles.label}>Size</Text>
         <View style={styles.chipRow}>
-          {SIZE_OPTIONS[category].map((size) => {
+          {sizeOptions.map((size) => {
             const selected = size === sizeL;
             return (
               <Pressable

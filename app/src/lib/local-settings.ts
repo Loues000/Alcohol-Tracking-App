@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import * as SecureStore from "expo-secure-store";
 import { DrinkCategory, VolumeUnit } from "./types";
-import { SIZE_OPTIONS } from "./drinks";
+import { getSizeOptions, SIZE_OPTIONS } from "./drinks";
 import { ThemeAccent, ThemeMode } from "./theme";
 
 export type LocalSettings = {
@@ -35,10 +35,11 @@ const normalizeSettings = (value: Partial<LocalSettings> | null): LocalSettings 
   const defaultCategory = Object.prototype.hasOwnProperty.call(SIZE_OPTIONS, candidateCategory)
     ? candidateCategory
     : DEFAULT_SETTINGS.defaultCategory;
-  const sizeOptions = SIZE_OPTIONS[defaultCategory];
+  const sizeOptions = getSizeOptions(defaultCategory, unit);
+  const candidateSize = value.defaultSizeL;
   const defaultSizeL =
-    value.defaultSizeL && sizeOptions.includes(value.defaultSizeL)
-      ? value.defaultSizeL
+    typeof candidateSize === "number" && Number.isFinite(candidateSize) && candidateSize > 0
+      ? candidateSize
       : sizeOptions[0];
   const themeMode = THEME_MODES.includes(value.themeMode ?? DEFAULT_SETTINGS.themeMode)
     ? (value.themeMode as ThemeMode)

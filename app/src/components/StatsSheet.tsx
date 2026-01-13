@@ -1,15 +1,12 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Dimensions,
-  FlatList,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
 } from "react-native";
 import { Feather, FontAwesome6 } from "@expo/vector-icons";
 import { getEntryEthanolGrams } from "../lib/alcohol";
@@ -39,9 +36,6 @@ export default function StatsSheet({ visible, onClose }: Props) {
   const { settings } = useLocalSettings();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const scrollRef = useRef<ScrollView>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-
   const now = new Date();
   const currentYear = now.getFullYear();
   const [year, setYear] = useState(currentYear);
@@ -142,16 +136,6 @@ export default function StatsSheet({ visible, onClose }: Props) {
     return `${(g / 1000).toFixed(1)}kg`;
   };
 
-  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const x = e.nativeEvent.contentOffset.x;
-    const index = Math.round(x / CARD_WIDTH);
-    setActiveIndex(index);
-  };
-
-  const scrollToIndex = (index: number) => {
-    scrollRef.current?.scrollTo({ x: index * CARD_WIDTH, animated: true });
-  };
-
   const yearBounds = useMemo(() => {
     const years = entries.map((e) => new Date(e.consumed_at).getFullYear());
     if (years.length === 0) return { min: currentYear, max: currentYear };
@@ -160,8 +144,6 @@ export default function StatsSheet({ visible, onClose }: Props) {
       max: Math.max(...years, currentYear),
     };
   }, [entries, currentYear]);
-
-  const cards = ["Overview", "Patterns", "Drink Mix", "Pure Alcohol"];
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -194,162 +176,152 @@ export default function StatsSheet({ visible, onClose }: Props) {
             </Pressable>
           </View>
 
-          {/* Card indicators */}
-          <View style={styles.indicators}>
-            {cards.map((label, i) => (
-              <Pressable
-                key={label}
-                style={[styles.indicator, activeIndex === i && styles.indicatorActive]}
-                onPress={() => scrollToIndex(i)}
-              >
-                <Text style={[styles.indicatorText, activeIndex === i && styles.indicatorTextActive]}>
-                  {label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
           {/* Swipeable cards */}
           <ScrollView
-            ref={scrollRef}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
             contentContainerStyle={styles.cardsContainer}
           >
             {/* Overview Card */}
-            <View style={styles.card}>
-              <View style={[styles.cardAccent, { backgroundColor: colors.accent }]} />
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>Year at a glance</Text>
-                <View style={styles.bigStat}>
-                  <Text style={styles.bigStatValue}>
-                    {formatVolume(overviewStats.totalLiters, settings.unit)}
-                  </Text>
-                  <Text style={styles.bigStatLabel}>total volume</Text>
-                </View>
-                <View style={styles.statsGrid}>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statValue}>{overviewStats.entryCount}</Text>
-                    <Text style={styles.statLabel}>drinks logged</Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statValue}>{overviewStats.drinkingDays}</Text>
-                    <Text style={styles.statLabel}>drinking days</Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statValue}>
-                      {formatVolume(overviewStats.avgPerDrinkingDay, settings.unit)}
+            <View style={styles.cardPage}>
+              <View style={styles.card}>
+                <View style={[styles.cardAccent, { backgroundColor: colors.accent }]} />
+                <View style={styles.cardContent}>
+                  <Text style={styles.cardTitle}>Year at a glance</Text>
+                  <View style={styles.bigStat}>
+                    <Text style={styles.bigStatValue}>
+                      {formatVolume(overviewStats.totalLiters, settings.unit)}
                     </Text>
-                    <Text style={styles.statLabel}>avg/drinking day</Text>
+                    <Text style={styles.bigStatLabel}>total volume</Text>
                   </View>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statValue}>
-                      {formatVolume(overviewStats.maxLiters, settings.unit)}
-                    </Text>
-                    <Text style={styles.statLabel}>peak day</Text>
+                  <View style={styles.statsGrid}>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>{overviewStats.entryCount}</Text>
+                      <Text style={styles.statLabel}>drinks logged</Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>{overviewStats.drinkingDays}</Text>
+                      <Text style={styles.statLabel}>drinking days</Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>
+                        {formatVolume(overviewStats.avgPerDrinkingDay, settings.unit)}
+                      </Text>
+                      <Text style={styles.statLabel}>avg/drinking day</Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>
+                        {formatVolume(overviewStats.maxLiters, settings.unit)}
+                      </Text>
+                      <Text style={styles.statLabel}>peak day</Text>
+                    </View>
                   </View>
                 </View>
               </View>
             </View>
 
             {/* Patterns Card */}
-            <View style={styles.card}>
-              <View style={[styles.cardAccent, { backgroundColor: colors.accent }]} />
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>Weekly patterns</Text>
-                <View style={styles.weekdayBars}>
-                  {weekdayStats.map((day) => (
-                    <View key={day.label} style={styles.weekdayBar}>
-                      <View style={styles.barContainer}>
-                        <View
-                          style={[
-                            styles.barFill,
-                            {
-                              height: `${Math.max(day.percent, 2)}%`,
-                              backgroundColor: colors.accent,
-                            },
-                          ]}
-                        />
+            <View style={styles.cardPage}>
+              <View style={styles.card}>
+                <View style={[styles.cardAccent, { backgroundColor: colors.accent }]} />
+                <View style={styles.cardContent}>
+                  <Text style={styles.cardTitle}>Weekly patterns</Text>
+                  <View style={styles.weekdayBars}>
+                    {weekdayStats.map((day) => (
+                      <View key={day.label} style={styles.weekdayBar}>
+                        <View style={styles.barContainer}>
+                          <View
+                            style={[
+                              styles.barFill,
+                              {
+                                height: `${Math.max(day.percent, 2)}%`,
+                                backgroundColor: colors.accent,
+                              },
+                            ]}
+                          />
+                        </View>
+                        <Text style={styles.weekdayLabel}>{day.label}</Text>
+                        <Text style={styles.weekdayValue}>
+                          {formatVolume(day.liters, settings.unit)}
+                        </Text>
                       </View>
-                      <Text style={styles.weekdayLabel}>{day.label}</Text>
-                      <Text style={styles.weekdayValue}>
-                        {formatVolume(day.liters, settings.unit)}
-                      </Text>
-                    </View>
-                  ))}
+                    ))}
+                  </View>
                 </View>
               </View>
             </View>
 
             {/* Drink Mix Card */}
-            <View style={styles.card}>
-              <View style={[styles.cardAccent, { backgroundColor: colors.accent }]} />
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>What you drink</Text>
-                {categoryStats.length === 0 ? (
-                  <View style={styles.emptyCard}>
-                    <Text style={styles.emptyText}>No data for this year</Text>
-                  </View>
-                ) : (
-                  <View style={styles.categoryList}>
-                    {categoryStats.map((cat) => (
-                      <View key={cat.key} style={styles.categoryRow}>
-                        <View style={styles.categoryInfo}>
-                          <View style={[styles.categoryDot, { backgroundColor: cat.color }]} />
-                          <Text style={styles.categoryLabel}>{cat.label}</Text>
-                          <Text style={styles.categoryPercent}>{Math.round(cat.percent)}%</Text>
+            <View style={styles.cardPage}>
+              <View style={styles.card}>
+                <View style={[styles.cardAccent, { backgroundColor: colors.accent }]} />
+                <View style={styles.cardContent}>
+                  <Text style={styles.cardTitle}>What you drink</Text>
+                  {categoryStats.length === 0 ? (
+                    <View style={styles.emptyCard}>
+                      <Text style={styles.emptyText}>No data for this year</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.categoryList}>
+                      {categoryStats.map((cat) => (
+                        <View key={cat.key} style={styles.categoryRow}>
+                          <View style={styles.categoryInfo}>
+                            <View style={[styles.categoryDot, { backgroundColor: cat.color }]} />
+                            <Text style={styles.categoryLabel}>{cat.label}</Text>
+                            <Text style={styles.categoryPercent}>{Math.round(cat.percent)}%</Text>
+                          </View>
+                          <View style={styles.categoryBarTrack}>
+                            <View
+                              style={[
+                                styles.categoryBarFill,
+                                { width: `${cat.barPercent}%`, backgroundColor: cat.color },
+                              ]}
+                            />
+                          </View>
+                          <Text style={styles.categoryValue}>
+                            {formatVolume(cat.liters, settings.unit)}
+                          </Text>
                         </View>
-                        <View style={styles.categoryBarTrack}>
-                          <View
-                            style={[
-                              styles.categoryBarFill,
-                              { width: `${cat.barPercent}%`, backgroundColor: cat.color },
-                            ]}
-                          />
-                        </View>
-                        <Text style={styles.categoryValue}>
-                          {formatVolume(cat.liters, settings.unit)}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
+                      ))}
+                    </View>
+                  )}
+                </View>
               </View>
             </View>
 
             {/* Pure Alcohol Card */}
-            <View style={styles.card}>
-              <View style={[styles.cardAccent, { backgroundColor: colors.accent }]} />
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>Pure alcohol consumed</Text>
-                <View style={styles.bigStat}>
-                  <Text style={styles.bigStatValue}>{formatGrams(pureAlcoholStats.totalGrams)}</Text>
-                  <Text style={styles.bigStatLabel}>ethanol this year</Text>
-                </View>
-                <View style={styles.monthlyBars}>
-                  {pureAlcoholStats.monthly.map((m) => (
-                    <View key={m.label} style={styles.monthlyBar}>
-                      <View style={styles.monthlyBarContainer}>
-                        <View
-                          style={[
-                            styles.barFill,
-                            {
-                              height: `${Math.max(m.percent, 2)}%`,
-                              backgroundColor: colors.accent,
-                            },
-                          ]}
-                        />
+            <View style={styles.cardPage}>
+              <View style={styles.card}>
+                <View style={[styles.cardAccent, { backgroundColor: colors.accent }]} />
+                <View style={styles.cardContent}>
+                  <Text style={styles.cardTitle}>Pure alcohol consumed</Text>
+                  <View style={styles.bigStat}>
+                    <Text style={styles.bigStatValue}>{formatGrams(pureAlcoholStats.totalGrams)}</Text>
+                    <Text style={styles.bigStatLabel}>ethanol this year</Text>
+                  </View>
+                  <View style={styles.monthlyBars}>
+                    {pureAlcoholStats.monthly.map((m) => (
+                      <View key={m.label} style={styles.monthlyBar}>
+                        <View style={styles.monthlyBarContainer}>
+                          <View
+                            style={[
+                              styles.barFill,
+                              {
+                                height: `${Math.max(m.percent, 2)}%`,
+                                backgroundColor: colors.accent,
+                              },
+                            ]}
+                          />
+                        </View>
+                        <Text style={styles.monthlyLabel}>{m.label}</Text>
                       </View>
-                      <Text style={styles.monthlyLabel}>{m.label}</Text>
-                    </View>
-                  ))}
+                    ))}
+                  </View>
+                  <Text style={styles.footnote}>
+                    Based on entry ABV when available, otherwise category defaults.
+                  </Text>
                 </View>
-                <Text style={styles.footnote}>
-                  Based on entry ABV when available, otherwise category defaults.
-                </Text>
               </View>
             </View>
           </ScrollView>
@@ -428,30 +400,11 @@ const createStyles = (colors: Theme["colors"]) =>
       alignItems: "center",
       justifyContent: "center",
     },
-    indicators: {
-      flexDirection: "row",
-      paddingHorizontal: 20,
-      gap: 8,
-      marginBottom: 16,
-    },
-    indicator: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 999,
-      backgroundColor: colors.surfaceMuted,
-    },
-    indicatorActive: {
-      backgroundColor: colors.accent,
-    },
-    indicatorText: {
-      fontSize: 12,
-      fontWeight: "600",
-      color: colors.textMuted,
-    },
-    indicatorTextActive: {
-      color: colors.accentText,
-    },
     cardsContainer: {
+      paddingBottom: 16,
+    },
+    cardPage: {
+      width: SCREEN_WIDTH,
       paddingHorizontal: 20,
     },
     card: {
