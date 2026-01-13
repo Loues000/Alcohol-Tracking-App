@@ -34,6 +34,8 @@ type PendingOp =
       lastError?: string | null;
     };
 
+type InsertPendingOp = Extract<PendingOp, { kind: "insert" }>;
+
 type EntriesContextValue = {
   entries: Entry[];
   pendingOps: PendingOp[];
@@ -158,9 +160,9 @@ export function EntriesProvider({ userId, children }: { userId: string; children
   }, [userId]);
 
   const enqueueInserts = useCallback(
-    (inputs: EntryInput[]) => {
+    (inputs: EntryInput[]): InsertPendingOp[] => {
       const now = Date.now();
-      const ops: PendingOp[] = inputs.map((input) => ({
+      const ops: InsertPendingOp[] = inputs.map((input) => ({
         id: makeId(),
         kind: "insert",
         entryId: makeId(),

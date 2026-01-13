@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Animated,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -9,7 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
+import { Feather, MaterialIcons } from "@expo/vector-icons";
 import DrinkIcon from "../components/DrinkIcon";
 import DayWheel from "../components/DayWheel";
 import ErrorBanner from "../components/ErrorBanner";
@@ -268,7 +269,12 @@ export default function AddEntryScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>Add Entry</Text>
-          {saved ? <Text style={styles.saved}>Saved</Text> : null}
+          {saved ? (
+            <View style={styles.savedBadge}>
+              <Feather name="check" size={14} color={colors.accent} />
+              <Text style={styles.savedText}>Saved</Text>
+            </View>
+          ) : null}
         </View>
         {settingsLoading ? <Text style={styles.loadingNotice}>Loading your preferences...</Text> : null}
         {error ? <ErrorBanner message={error} /> : null}
@@ -353,16 +359,41 @@ export default function AddEntryScreen() {
             </ScrollView>
           </View>
 
-          <View style={styles.rowBetween}>
-            <View style={styles.rowItem}>
-              <Text style={styles.label}>Size</Text>
-              <Pressable style={styles.dropdown} onPress={() => setSizeModalVisible(true)}>
-                <Text style={styles.dropdownText}>{formatSize(sizeL, settings.unit)}</Text>
-                <Text style={styles.dropdownIcon}>v</Text>
+          <View style={styles.section}>
+            <Text style={styles.label}>Size</Text>
+            <View style={styles.sizePillsRow}>
+              {SIZE_OPTIONS[category].map((size) => {
+                const selected = size === sizeL;
+                return (
+                  <Pressable
+                    key={size}
+                    onPress={() => setSizeL(size)}
+                    style={[styles.sizePill, selected && styles.sizePillSelected]}
+                  >
+                    <Text style={[styles.sizePillText, selected && styles.sizePillTextSelected]}>
+                      {formatSize(size, settings.unit)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable
+                style={styles.sizePillMore}
+                onPress={() => setSizeModalVisible(true)}
+              >
+                <Feather name="more-horizontal" size={16} color={colors.textMuted} />
               </Pressable>
             </View>
-            <View style={styles.rowItem}>
-              <Text style={styles.label}>Count</Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Count</Text>
+            <View style={styles.countRow}>
+              <Pressable
+                style={styles.countButton}
+                onPress={() => setCount((c) => String(Math.max(1, parseInt(c || "1", 10) - 1)))}
+              >
+                <Feather name="minus" size={18} color={colors.text} />
+              </Pressable>
               <TextInput
                 value={count}
                 onChangeText={(text) => setCount(text.replace(/[^0-9]/g, ""))}
@@ -371,6 +402,12 @@ export default function AddEntryScreen() {
                 placeholder="1"
                 placeholderTextColor={colors.textMuted}
               />
+              <Pressable
+                style={styles.countButton}
+                onPress={() => setCount((c) => String(Math.min(50, parseInt(c || "1", 10) + 1)))}
+              >
+                <Feather name="plus" size={18} color={colors.text} />
+              </Pressable>
             </View>
           </View>
 
@@ -462,7 +499,8 @@ export default function AddEntryScreen() {
             onPress={handleNextEntry}
             disabled={busy}
           >
-            <Text style={styles.nextEntryText}>Next Entry</Text>
+            <Feather name="plus" size={14} color={colors.accentText} />
+            <Text style={styles.nextEntryText}>Add Another</Text>
           </Pressable>
         </View>
 
@@ -548,9 +586,19 @@ const createStyles = (colors: Theme["colors"]) =>
     color: colors.textMuted,
     marginBottom: 8,
   },
-  saved: {
+  savedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  savedText: {
     color: colors.accent,
-    fontWeight: "600",
+    fontWeight: "700",
+    fontSize: 13,
   },
   card: {
     backgroundColor: colors.surface,
@@ -647,21 +695,75 @@ const createStyles = (colors: Theme["colors"]) =>
     alignItems: "center",
     gap: 6,
   },
+  sizePillsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    alignItems: "center",
+  },
+  sizePill: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sizePillSelected: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  sizePillText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  sizePillTextSelected: {
+    color: colors.accentText,
+  },
+  sizePillMore: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  countRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  countButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   nextEntryButton: {
     alignSelf: "flex-start",
     marginTop: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
     backgroundColor: colors.accent,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   nextEntryButtonDisabled: {
     opacity: 0.6,
   },
   nextEntryText: {
     color: colors.accentText,
-    fontWeight: "600",
-    fontSize: 12,
+    fontWeight: "700",
+    fontSize: 13,
   },
   chipTextSelected: {
     color: colors.accentText,
@@ -729,14 +831,17 @@ const createStyles = (colors: Theme["colors"]) =>
     fontWeight: "700",
   },
   countInput: {
+    width: 60,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     backgroundColor: colors.surface,
-    fontWeight: "600",
+    fontWeight: "700",
+    fontSize: 16,
     color: colors.text,
+    textAlign: "center",
   },
   textInput: {
     borderWidth: 1,

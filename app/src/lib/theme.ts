@@ -106,3 +106,44 @@ export const getTheme = (mode: ThemeMode, accent: ThemeAccent): Theme => {
     },
   };
 };
+
+// Visual effect utilities for the bar/pub aesthetic
+
+/**
+ * Get accent line style for subtle separators
+ */
+export const getAccentLineStyle = (accentColor: string, mode: ThemeMode) => ({
+  height: 1,
+  backgroundColor: hexToRgba(accentColor, mode === "dark" ? 0.15 : 0.12),
+});
+
+/**
+ * Get coaster ring style (circular dashed accent border)
+ */
+export const getCoasterRingStyle = (accentColor: string, mode: ThemeMode) => ({
+  borderWidth: 2,
+  borderColor: hexToRgba(accentColor, mode === "dark" ? 0.25 : 0.2),
+  borderStyle: "dashed" as const,
+  borderRadius: 999,
+});
+
+/**
+ * Get subtle glow/ember effect for cards
+ */
+export const getEmberGlowStyle = (accentColor: string, mode: ThemeMode) => ({
+  shadowColor: accentColor,
+  shadowOpacity: mode === "dark" ? 0.3 : 0.15,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 4 },
+  elevation: 4,
+});
+
+/**
+ * Get warm highlight overlay style
+ */
+export const getWarmHighlightStyle = (mode: ThemeMode) => ({
+  backgroundColor: hexToRgba("#f5e6d3", mode === "dark" ? 0.03 : 0.5),
+});
+
+// Export hexToRgba for use in components
+export { hexToRgba };

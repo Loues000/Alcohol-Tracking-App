@@ -2,17 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AppState,
   type AppStateStatus,
+  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { Feather, FontAwesome6 } from "@expo/vector-icons";
 import DrinkIcon from "../components/DrinkIcon";
 import { CategoryChart } from "../components/dashboard/CategoryChart";
 import { StreakCard } from "../components/dashboard/StreakCard";
 import { SummaryCard } from "../components/dashboard/SummaryCard";
 import { YearlyHeatmap } from "../components/dashboard/YearlyHeatmap";
+import HistoryDrawer from "../components/HistoryDrawer";
+import StatsSheet from "../components/StatsSheet";
 import { DRINK_CATEGORIES } from "../lib/drinks";
 import { startOfDay, startOfMonth, startOfWeek, toLocalDayKeyFromISO } from "../lib/dates";
 import { useEntries } from "../lib/entries-context";
@@ -31,6 +35,8 @@ export default function DashboardScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [now, setNow] = useState(() => new Date());
+  const [historyVisible, setHistoryVisible] = useState(false);
+  const [statsVisible, setStatsVisible] = useState(false);
 
   useEffect(() => {
     const handleAppStateChange = (state: AppStateStatus) => {
@@ -146,18 +152,24 @@ export default function DashboardScreen() {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <View style={styles.headerText}>
-              <View style={styles.headerBadge}>
-                <Text style={styles.headerBadgeText}>Dashboard</Text>
-              </View>
               <Text style={styles.greeting}>
                 {greeting}, {displayName}
               </Text>
-              <Text style={styles.subtitle}>
-                Here's your quick snapshot.
-              </Text>
             </View>
-            <View style={styles.headerIcon}>
-              <DrinkIcon category="longdrink" size={18} color={colors.accent} />
+            <View style={styles.headerButtons}>
+              <Pressable
+                style={styles.headerButton}
+                onPress={() => setHistoryVisible(true)}
+              >
+                <Feather name="clock" size={18} color={colors.text} />
+                {todayEntries.length > 0 && (
+                  <View style={styles.headerBadgeCount}>
+                    <Text style={styles.headerBadgeCountText}>
+                      {todayEntries.length > 9 ? "9+" : todayEntries.length}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
             </View>
           </View>
         </View>
@@ -194,7 +206,29 @@ export default function DashboardScreen() {
           categoryVolumes={categoryVolumes}
           unit={unit}
         />
+
+        <View style={styles.fabSpacer} />
       </ScrollView>
+
+      {/* Stats FAB */}
+      <Pressable
+        style={styles.fab}
+        onPress={() => setStatsVisible(true)}
+      >
+        <FontAwesome6 name="chart-simple" size={20} color={colors.accentText} />
+      </Pressable>
+
+      {/* History Drawer */}
+      <HistoryDrawer
+        visible={historyVisible}
+        onClose={() => setHistoryVisible(false)}
+      />
+
+      {/* Stats Sheet */}
+      <StatsSheet
+        visible={statsVisible}
+        onClose={() => setStatsVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -241,33 +275,58 @@ const createStyles = (colors: Theme["colors"]) =>
     header: { gap: 10 },
     headerTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
     headerText: { flexShrink: 1, minWidth: 0, gap: 4 },
-    headerBadge: {
-      alignSelf: "flex-start",
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 999,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
+    headerButtons: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
     },
-    headerBadgeText: {
-      fontSize: 11,
-      fontWeight: "700",
-      color: colors.textMuted,
-      letterSpacing: 0.6,
-      textTransform: "uppercase",
-    },
-    headerIcon: {
-      width: 38,
-      height: 38,
-      borderRadius: 12,
+    headerButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 14,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
       alignItems: "center",
       justifyContent: "center",
+      position: "relative",
+    },
+    headerBadgeCount: {
+      position: "absolute",
+      top: -4,
+      right: -4,
+      minWidth: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: colors.accent,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 4,
+    },
+    headerBadgeCountText: {
+      fontSize: 10,
+      fontWeight: "800",
+      color: colors.accentText,
     },
     greeting: { fontSize: 26, fontWeight: "800", color: colors.text },
-    subtitle: { fontSize: 13, color: colors.textMuted, fontWeight: "600" },
     summaryRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+    fabSpacer: {
+      height: 70,
+    },
+    fab: {
+      position: "absolute",
+      bottom: 24,
+      right: 20,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.accent,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 4,
+    },
   });

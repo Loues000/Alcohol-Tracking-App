@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View, ViewStyle } from "react-native";
-import { FontAwesome6 } from "@expo/vector-icons";
+import { StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../lib/theme-context";
+import { hexToRgba } from "../../lib/theme";
 
 type Variant = "today" | "week" | "month";
 
@@ -10,75 +11,128 @@ type Props = {
   volume: string;
 };
 
-const CONFIG: Record<Variant, { label: string; icon: "sun" | "calendar" | "calendar-days" }> = {
-  today: { label: "Today", icon: "sun" },
-  week: { label: "This week", icon: "calendar" },
-  month: { label: "This month", icon: "calendar-days" },
+const VARIANT_CONFIG: Record<
+  Variant,
+  { label: string; icon: keyof typeof Ionicons.glyphMap }
+> = {
+  today: { label: "Today", icon: "sunny-outline" },
+  week: { label: "This week", icon: "calendar-outline" },
+  month: { label: "This month", icon: "calendar-number-outline" },
 };
 
 export function SummaryCard({ variant, drinkCount, volume }: Props) {
-  const { colors } = useTheme();
-  const { label, icon } = CONFIG[variant];
-  const tint =
-    variant === "today"
-      ? colors.accentSoft
-      : variant === "week"
-      ? colors.accentMuted
-      : colors.surfaceMuted;
+  const { colors, mode } = useTheme();
+  const { label, icon } = VARIANT_CONFIG[variant];
+
+  // Coaster ring effect color
+  const coasterColor = hexToRgba(colors.accent, mode === "dark" ? 0.2 : 0.15);
 
   return (
     <View
       style={[
         styles.card,
-        { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow },
+        {
+          backgroundColor: colors.surfaceAlt,
+          borderColor: colors.border,
+          shadowColor: colors.accent,
+        },
       ]}
     >
+      {/* Coaster ring effect */}
+      <View
+        style={[
+          styles.coasterRing,
+          {
+            borderColor: coasterColor,
+          },
+        ]}
+      />
+      <View style={[styles.glow, { backgroundColor: colors.accentSoft }]} />
+      
       <View style={styles.header}>
-        <View
-          style={[
-            styles.icon,
-            { backgroundColor: tint, borderColor: colors.borderStrong } as ViewStyle,
-          ]}
-        >
-          <FontAwesome6 name={icon} size={12} color={colors.accent} />
+        <View style={[styles.badge, { backgroundColor: colors.accentSoft }]}>
+          <Text style={[styles.badgeText, { color: colors.accent }]}>{label}</Text>
         </View>
-        <Text style={[styles.label, { color: colors.textMuted }]}>{label}</Text>
+        <View style={[styles.iconCircle, { backgroundColor: colors.surfaceMuted }]}>
+          <Ionicons name={icon} size={14} color={colors.accent} />
+        </View>
       </View>
+
       <Text style={[styles.value, { color: colors.text }]}>{drinkCount}</Text>
-      <Text style={[styles.meta, { color: colors.textMuted }]}>{volume}</Text>
+      <View style={[styles.divider, { backgroundColor: colors.border }]} />
+      <Text style={[styles.subtitle, { color: colors.textMuted }]}>{volume}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    flexBasis: "48%",
-    flexGrow: 1,
-    minWidth: 0,
-    borderRadius: 18,
-    padding: 14,
+    flex: 1,
+    minWidth: 140,
+    borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
+    overflow: "hidden",
+    position: "relative",
     gap: 6,
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 1,
+    elevation: 2,
   },
-  header: { flexDirection: "row", alignItems: "center", gap: 8 },
-  icon: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
+  coasterRing: {
+    position: "absolute",
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    bottom: -30,
+    left: -30,
+    opacity: 0.6,
+  },
+  glow: {
+    position: "absolute",
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    top: -30,
+    right: -30,
+  },
+  header: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
+    justifyContent: "space-between",
   },
-  label: {
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: "800",
     letterSpacing: 0.3,
   },
-  value: { fontSize: 18, fontWeight: "900" },
-  meta: { fontSize: 11, fontWeight: "600" },
+  iconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  value: {
+    fontSize: 26,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  divider: {
+    height: 1,
+    marginVertical: 2,
+  },
+  subtitle: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
 });
+
